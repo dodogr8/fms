@@ -1,0 +1,130 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ==========================================
+// 1. ຕາຕະລາງຜູ້ໃຊ້ງານ (Users) & 4 ສິດທິ
+// ==========================================
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  username  String   @unique
+  password  String   // ລະຫັດຜ່ານ (Hash)
+  role      Role     @default(FINANCE_STAFF)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum Role {
+  ADMIN          // ຜູ້ເບິ່ງແຍງລະບົບ
+  DIRECTOR       // ຫົວໜ້າກົມ
+  FINANCE_STAFF  // ພະນັກງານການເງິນ (ເຫັນແຕ່ການເງິນ)
+  ASSET_STAFF    // ພະນັກງານຊັບສິນ (ເຫັນແຕ່ຊັບສິນ)
+}
+
+// ==========================================
+// 2. ຕາຕະລາງໝວດໝູ່ (Categories Tree)
+// ==========================================
+model Category {
+  id           Int           @id @default(autoincrement())
+  name         String
+  prefix       String?       // ຕົວອັກສອນຫຍໍ້ ເຊັ່ນ: INC, EXP, IT
+  type         String        // 'income', 'expense', ຫຼື 'asset'
+  parentId     Int?          
+  parent       Category?     @relation("SubCategories", fields: [parentId], references: [id], onDelete: Cascade)
+  children     Category[]    @relation("SubCategories")
+  
+  transactions Transaction[]
+  budgets      Budget[]
+  assets       Asset[]
+
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+// ==========================================
+// 3. ຕາຕະລາງລາຍຮັບ-ລາຍຈ່າຍ (ຮອງຮັບ Excel Import)
+// ==========================================
+model Transaction {
+  id          Int       @id @default(autoincrement()) // ລຳດັບ
+  referenceNo String?   // ເລກບິນສັ່ງຈ່າຍ
+  date        DateTime  // ວັນທີ ເດືອນ ປີ
+  description String    // ເນື້ອໃນລາຍການ
+  disburser   String?   // ຜູ້ເບີກເງິນ
+  receiver    String?   // ຜູ້ຮັບເງິນ
+  amount      Float     // ຈຳນວນເງິນ
+  feeAmount   Float     @default(0) // ຄ່າທຳນຽມ (ຖ້າມີ)
+  serviceAmount Float   @default(0) // ຄ່າບໍລິການ (ຖ້າມີ)
+  remark      String?   // ໝາຍເຫດ
+
+  type        TransType // INCOME ຫຼື EXPENSE
+  
+  categoryId  Int?
+  category    Category? @relation(fields: [categoryId], references: [id])
+
+  budgetId    Int?
+  budget      Budget?   @relation(fields: [budgetId], references: [id])
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+enum TransType {
+  INCOME
+  EXPENSE
+}
+
+// ==========================================
+// 4. ຕາຕະລາງງົບປະມານໂຄງການ (Budgets)
+// ==========================================
+model Budget {
+  id             Int           @id @default(autoincrement())
+  projectName    String        // ຊື່ໂຄງສ້າງ/ງົບປະມານ
+  totalAmount    Float         // ງົບປະມານທັງໝົດ
+  deductedAmount Float         @default(0) // ຍອດຫັກ
+  startDate      DateTime?     // ວັນທີເລີ່ມ
+  endDate        DateTime?     // ວັນທີສິ້ນສຸດ
+  detail         String?       // ລາຍລະອຽດ
+
+  categoryId     Int?
+  category       Category?     @relation(fields: [categoryId], references: [id])
+  
+  transactions   Transaction[] // ລາຍການຈ່າຍທີ່ຕັດຈາກງົບນີ້
+
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
+
+// ==========================================
+// 5. ຕາຕະລາງຄຸ້ມຄອງຊັບສິນ (Assets)
+// ==========================================
+model Asset {
+  id           Int         @id @default(autoincrement())
+  assetCode    String      @unique // ລະຫັດຊັບສິນອັດຕະໂນມັດ (ເຊັ່ນ: IT-0001)
+  name         String      // ຊື່ຊັບສິນ
+  serialNumber String?     // ເລກ Serial Number
+  price        Float       // ລາຄາ
+  status       AssetStatus @default(AVAILABLE) // ສະຖານະ
+  assignedTo   String?     // ຜູ້ຮັບຜິດຊອບ
+  assignedDate DateTime?   // ວັນທີມອບ
+  qrCodePath   String?     // ຮູບ QR Code
+  remark       String?     // ໝາຍເຫດ
+
+  categoryId   Int?
+  category     Category?   @relation(fields: [categoryId], references: [id])
+
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+}
+
+enum AssetStatus {
+  AVAILABLE   // ວ່າງ / ພ້ອມໃຊ້
+  IN_USE      // ກຳລັງນຳໃຊ້
+  MAINTENANCE // ກຳລັງສ້ອມແປງ
+  BROKEN      // ເປ່ເພ / ລໍຖ້າທຳລາຍ
+}
