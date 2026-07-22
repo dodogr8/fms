@@ -2,129 +2,84 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// 💡 ໃຫ້ມີ datasource db ພຽງບ່ອນດຽວ
 datasource db {
-  provider = "mysql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
-// ==========================================
-// 1. ຕາຕະລາງຜູ້ໃຊ້ງານ (Users) & 4 ສິດທິ
-// ==========================================
+// 👤 ຕາຕະລາງຜູ້ໃຊ້ງານ (User)
 model User {
   id        Int      @id @default(autoincrement())
-  name      String
   username  String   @unique
-  password  String   // ລະຫັດຜ່ານ (Hash)
-  role      Role     @default(FINANCE_STAFF)
+  password  String
+  fullName  String
+  role      String   @default("FINANCE_STAFF") // ADMIN, DIRECTOR, FINANCE_STAFF, ASSET_STAFF
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
-enum Role {
-  ADMIN          // ຜູ້ເບິ່ງແຍງລະບົບ
-  DIRECTOR       // ຫົວໜ້າກົມ
-  FINANCE_STAFF  // ພະນັກງານການເງິນ (ເຫັນແຕ່ການເງິນ)
-  ASSET_STAFF    // ພະນັກງານຊັບສິນ (ເຫັນແຕ່ຊັບສິນ)
+// 💵 ຕາຕະລາງລາຍຮັບ (Income)
+model Income {
+  id          Int      @id @default(autoincrement())
+  referenceNo String?  // ເລກບິນສັ່ງຈ່າຍ
+  date        String   // ວັນທີ
+  description String   // ເນື້ອໃນລາຍການ
+  disburser   String?  // ຜູ້ເບີກເງິນ
+  receiver    String?  // ຜູ້ຮັບເງິນ
+  amount      Float    // ຈຳນວນເງິນ
+  remark      String?  // ໝາຍເຫດ
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
-// ==========================================
-// 2. ຕາຕະລາງໝວດໝູ່ (Categories Tree)
-// ==========================================
-model Category {
-  id           Int           @id @default(autoincrement())
-  name         String
-  prefix       String?       // ຕົວອັກສອນຫຍໍ້ ເຊັ່ນ: INC, EXP, IT
-  type         String        // 'income', 'expense', ຫຼື 'asset'
-  parentId     Int?          
-  parent       Category?     @relation("SubCategories", fields: [parentId], references: [id], onDelete: Cascade)
-  children     Category[]    @relation("SubCategories")
-  
-  transactions Transaction[]
-  budgets      Budget[]
-  assets       Asset[]
-
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+// 💸 ຕາຕະລາງລາຍຈ່າຍ (Expense)
+model Expense {
+  id          Int      @id @default(autoincrement())
+  referenceNo String?  // ເລກບິນສັ່ງຈ່າຍ
+  date        String   // ວັນທີ
+  category    String   @default("ຄ່າບໍລິຫານທົ່ວໄປ") // ໝວດໝູ່ລາຍຈ່າຍ
+  description String   // ເນື້ອໃນລາຍການ
+  disburser   String?  // ຜູ້ເບີກເງິນ
+  receiver    String?  // ຜູ້ຮັບເງິນ
+  amount      Float    // ຈຳນວນເງິນ
+  budgetId    Int?     // ID ຂອງໂຄງການ (ຖ້າຕັດຈາກງົບປະມານໂຄງການ)
+  budgetName  String?  // ຊື່ໂຄງການ (ສຳລັບສະແດງຜົນ)
+  remark      String?  // ໝາຍເຫດ
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
-// ==========================================
-// 3. ຕາຕະລາງລາຍຮັບ-ລາຍຈ່າຍ (ຮອງຮັບ Excel Import)
-// ==========================================
-model Transaction {
-  id          Int       @id @default(autoincrement()) // ລຳດັບ
-  referenceNo String?   // ເລກບິນສັ່ງຈ່າຍ
-  date        DateTime  // ວັນທີ ເດືອນ ປີ
-  description String    // ເນື້ອໃນລາຍການ
-  disburser   String?   // ຜູ້ເບີກເງິນ
-  receiver    String?   // ຜູ້ຮັບເງິນ
-  amount      Float     // ຈຳນວນເງິນ
-  feeAmount   Float     @default(0) // ຄ່າທຳນຽມ (ຖ້າມີ)
-  serviceAmount Float   @default(0) // ຄ່າບໍລິການ (ຖ້າມີ)
-  remark      String?   // ໝາຍເຫດ
-
-  type        TransType // INCOME ຫຼື EXPENSE
-  
-  categoryId  Int?
-  category    Category? @relation(fields: [categoryId], references: [id])
-
-  budgetId    Int?
-  budget      Budget?   @relation(fields: [budgetId], references: [id])
-
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-}
-
-enum TransType {
-  INCOME
-  EXPENSE
-}
-
-// ==========================================
-// 4. ຕາຕະລາງງົບປະມານໂຄງການ (Budgets)
-// ==========================================
+// 📊 ຕາຕະລາງງົບປະມານ (Budget)
 model Budget {
-  id             Int           @id @default(autoincrement())
-  projectName    String        // ຊື່ໂຄງສ້າງ/ງົບປະມານ
-  totalAmount    Float         // ງົບປະມານທັງໝົດ
-  deductedAmount Float         @default(0) // ຍອດຫັກ
-  startDate      DateTime?     // ວັນທີເລີ່ມ
-  endDate        DateTime?     // ວັນທີສິ້ນສຸດ
-  detail         String?       // ລາຍລະອຽດ
-
-  categoryId     Int?
-  category       Category?     @relation(fields: [categoryId], references: [id])
-  
-  transactions   Transaction[] // ລາຍການຈ່າຍທີ່ຕັດຈາກງົບນີ້
-
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  id           Int      @id @default(autoincrement())
+  projectName  String   // ຊື່ໂຄງການ/ງົບປະມານ
+  categoryName String   // ໝວດໝູ່ / ແຫຼ່ງທຶນ
+  totalAmount  Float    // ງົບປະມານທັງໝົດ
+  isDeduct     Boolean  @default(false) // ຫັກເງິນບໍລິຫານຫຼືບໍ່
+  deductType   String   @default("percent") // percent ຫຼື amount
+  deductValue  Float    @default(0) // ຄ່າທີ່ປ້ອນ (ເຊັ່ນ 10% ຫຼື 5,000,000)
+  deductAmount Float    @default(0) // ຈຳນວນເງິນທີ່ຖືກຫັກຈິງ
+  netAmount    Float    // ງົບປະມານສຸດທິເຫຼືອໃຊ້ໃນໂຄງການ
+  usedAmount   Float    @default(0) // ຍອດໃຊ້ໄປແລ້ວ
+  startDate    String?  // ວັນທີເລີ່ມຕົ້ນ
+  endDate      String?  // ວັນທີສິ້ນສຸດ
+  detail       String?  // ລາຍລະອຽດ
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
-// ==========================================
-// 5. ຕາຕະລາງຄຸ້ມຄອງຊັບສິນ (Assets)
-// ==========================================
+// 📦 ຕາຕະລາງຊັບສິນ (Asset)
 model Asset {
-  id           Int         @id @default(autoincrement())
-  assetCode    String      @unique // ລະຫັດຊັບສິນອັດຕະໂນມັດ (ເຊັ່ນ: IT-0001)
-  name         String      // ຊື່ຊັບສິນ
-  serialNumber String?     // ເລກ Serial Number
-  price        Float       // ລາຄາ
-  status       AssetStatus @default(AVAILABLE) // ສະຖານະ
-  assignedTo   String?     // ຜູ້ຮັບຜິດຊອບ
-  assignedDate DateTime?   // ວັນທີມອບ
-  qrCodePath   String?     // ຮູບ QR Code
-  remark       String?     // ໝາຍເຫດ
-
-  categoryId   Int?
-  category     Category?   @relation(fields: [categoryId], references: [id])
-
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-}
-
-enum AssetStatus {
-  AVAILABLE   // ວ່າງ / ພ້ອມໃຊ້
-  IN_USE      // ກຳລັງນຳໃຊ້
-  MAINTENANCE // ກຳລັງສ້ອມແປງ
-  BROKEN      // ເປ່ເພ / ລໍຖ້າທຳລາຍ
+  id           Int      @id @default(autoincrement())
+  assetCode    String   @unique // ລະຫັດຊັບສິນ (ເຊັ່ນ COM-2026-001)
+  name         String   // ຊື່ຊັບສິນ
+  categoryName String   // ໝວດໝູ່ຊັບສິນ
+  purchaseDate String   // ວັນທີຈັດຊື້
+  price        Float    // ມູນຄ່າຊື້ (ກີບ)
+  assignedTo   String   // ຜູ້ຮັບຜິດຊອບ / ບ່ອນຕັ້ງ
+  status       String   @default("available") // available, in_use, maintenance, broken
+  attachment   String?  // 💡 ເພີ່ມຖັນນີ້ສຳລັບເກັບຊື່ໄຟລ໌ຮູບພາບ/ເອກະສານ
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
