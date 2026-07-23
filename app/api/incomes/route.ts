@@ -1,15 +1,18 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-// GET: ດຶງຂໍ້ມູນລາຍຮັບທັງໝົດ
+// GET: ດຶງຂໍ້ມູນລາຍຮັບທັງໝົດ (ລຽງຕາມວັນທີ ແລະ createdAt ລ່າສຸດ)
 export async function GET() {
   try {
     const incomes = await prisma.income.findMany({
-      orderBy: { id: "desc" },
+      orderBy: [
+        { date: "desc" },
+        { createdAt: "desc" },
+      ],
     });
     return NextResponse.json(incomes);
   } catch (error) {
-    return NextResponse.json({ message: "ບໍ່ສາມາດດຶງຂໍ້ມູນໄດ້" }, { status: 500 });
+    return NextResponse.json({ message: "ບໍ່ສາມາດດຶງຂໍ້ມູນລາຍຮັບໄດ້" }, { status: 500 });
   }
 }
 
@@ -38,5 +41,23 @@ export async function POST(request: Request) {
     return NextResponse.json(newIncome, { status: 201 });
   } catch (error) {
     return NextResponse.json({ message: "ບັນທຶກຂໍ້ມູນບໍ່ສຳເລັດ" }, { status: 500 });
+  }
+}
+
+// DELETE: ລົບຫຼາຍລາຍການ (Bulk Delete)
+export async function DELETE(request: Request) {
+  try {
+    const { ids } = await request.json();
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return NextResponse.json({ message: "ກະລຸນາເລືອກລາຍການທີ່ຕ້ອງການລົບ" }, { status: 400 });
+    }
+
+    await prisma.income.deleteMany({
+      where: { id: { in: ids.map((id) => Number(id)) } },
+    });
+
+    return NextResponse.json({ message: "ລົບຂໍ້ມູນສຳເລັດ" });
+  } catch (error) {
+    return NextResponse.json({ message: "ບໍ່ສາມາດລົບຂໍ້ມູນໄດ້" }, { status: 500 });
   }
 }

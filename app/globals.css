@@ -24,3 +24,18 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* 💡 ປັບສີຕົວໜັງສືຕອນພິມໃນ Input, Select, Textarea ໃຫ້ເປັນສີດຳເຂັ້ມ ແລະ ອ່ານງ່າຍ */
+input, 
+select, 
+textarea {
+  color: #0f172a !important; /* ສີດຳເຂັ້ມ Slate-900 */
+  font-weight: 600 !important; /* ເພີ່ມຄວາມ ໜາ-ແຈ້ງ ຂອງໂຕໜັງສື */
+}
+
+/* ປັບສີ Placeholder (ຂໍ້ຄວາມແນະນຳຈ່າງໆ) ໃຫ້ເປັນສີເທົາພໍດີ ເພື່ອບໍ່ໃຫ້ສັບສົນກັບໂຕພິມແທ້ */
+input::placeholder,
+textarea::placeholder {
+  color: #94a3b8 !important; /* Slate-400 */
+  font-weight: 400 !important;
+}

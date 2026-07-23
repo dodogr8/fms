@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Sidebar from "@/components/Sidebar";
 import Navbar from "@/components/Navbar";
 import { 
@@ -12,9 +12,13 @@ import {
   Edit, 
   X,
   Upload,
-  FolderKanban
+  FolderKanban,
+  ChevronLeft,
+  ChevronRight,
+  Filter
 } from "lucide-react";
 import * as XLSX from "xlsx";
+import { formatNumberInput, parseFormattedNumber } from "@/lib/formatters";
 
 interface ExpenseTransaction {
   id: number;
@@ -40,9 +44,25 @@ interface BudgetItem {
 export default function ExpensesPage() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [expenses, setExpenses] = useState<ExpenseTransaction[]>([]);
-  const [budgetList, setBudgetList] = useState<BudgetItem[]>([]); // ລາຍຊື່ໂຄງການ
+  const [budgetList, setBudgetList] = useState<BudgetItem[]>([]);
+  const [userRole, setUserRole] = useState<"ADMIN" | "DIRECTOR" | "FINANCE_STAFF" | "ASSET_STAFF">("ADMIN");
+
+  // Search & Filter States
   const [searchTerm, setSearchTerm] = useState("");
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [filterRef, setFilterRef] = useState("");
+  const [filterCategory, setFilterCategory] = useState("");
+  const [filterReceiver, setFilterReceiver] = useState("");
+
+  // Checkbox & Bulk Selection
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+
+  // Pagination
+  const [pageSize, setPageSize] = useState<number>(10);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+
+  // Modals
+  const [showModal, setShowModal] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [showImportModal, setShowImportModal] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -58,10 +78,19 @@ export default function ExpensesPage() {
     remark: "",
   });
 
-  // 💡 ດຶງຂໍ້ມູນລາຍຈ່າຍ ແລະ ລາຍຊື່ໂຄງການງົບປະມານ
   useEffect(() => {
     fetchExpenses();
     fetchBudgets();
+
+    const savedUser = localStorage.getItem("user");
+    if (savedUser) {
+      try {
+        const parsed = JSON.parse(savedUser);
+        if (parsed.role) setUserRole(parsed.role);
+      } catch (e) {
+        console.error("Error parsing user role", e);
+      }
+    }
   }, []);
 
   const fetchExpenses = async () => {
@@ -88,7 +117,47 @@ export default function ExpensesPage() {
     }
   };
 
-  // ເມື່ອເລືອກໂຄງການງົບປະມານ
+  // Realtime Filter Logic
+  const filteredExpenses = useMemo(() => {
+    return expenses.filter((item) => {
+      const matchSearch =
+        (item.description && item.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (item.referenceNo && item.referenceNo.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (item.receiver && item.receiver.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (item.budgetName && item.budgetName.toLowerCase().includes(searchTerm.toLowerCase()));
+
+      const matchRef = filterRef ? item.referenceNo?.toLowerCase().includes(filterRef.toLowerCase()) : true;
+      const matchCategory = filterCategory ? item.category?.toLowerCase().includes(filterCategory.toLowerCase()) : true;
+      const matchReceiver = filterReceiver ? item.receiver?.toLowerCase().includes(filterReceiver.toLowerCase()) : true;
+
+      return matchSearch && matchRef && matchCategory && matchReceiver;
+    });
+  }, [expenses, searchTerm, filterRef, filterCategory, filterReceiver]);
+
+  // Pagination Logic
+  const totalPages = Math.ceil(filteredExpenses.length / pageSize) || 1;
+  const paginatedExpenses = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredExpenses.slice(start, start + pageSize);
+  }, [filteredExpenses, currentPage, pageSize]);
+
+  // Checkbox Select All Logic
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      setSelectedIds(paginatedExpenses.map((i) => i.id));
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  const handleSelectOne = (id: number) => {
+    if (selectedIds.includes(id)) {
+      setSelectedIds(selectedIds.filter((item) => item !== id));
+    } else {
+      setSelectedIds([...selectedIds, id]);
+    }
+  };
+
   const handleBudgetChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const selectedId = e.target.value;
     if (!selectedId) {
@@ -104,7 +173,40 @@ export default function ExpensesPage() {
     });
   };
 
-  // 💡 ບັນທຶກລາຍຈ່າຍ
+  const handleOpenAdd = () => {
+    setEditingId(null);
+    setFormData({
+      referenceNo: "",
+      date: new Date().toISOString().split("T")[0],
+      category: "ຄ່າບໍລິຫານທົ່ວໄປ",
+      description: "",
+      disburser: "",
+      receiver: "",
+      amount: "",
+      budgetId: "",
+      budgetName: "",
+      remark: "",
+    });
+    setShowModal(true);
+  };
+
+  const handleOpenEdit = (item: ExpenseTransaction) => {
+    setEditingId(item.id);
+    setFormData({
+      referenceNo: item.referenceNo || "",
+      date: item.date || new Date().toISOString().split("T")[0],
+      category: item.category || "ຄ່າບໍລິຫານທົ່ວໄປ",
+      description: item.description || "",
+      disburser: item.disburser || "",
+      receiver: item.receiver || "",
+      amount: formatNumberInput(item.amount.toString()), // 💡 ໃສ່ຈຸດອັດຕະໂນມັດຕອນເປີດແກ້ໄຂ
+      budgetId: item.budgetId ? item.budgetId.toString() : "",
+      budgetName: item.budgetName || "",
+      remark: item.remark || "",
+    });
+    setShowModal(true);
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.description || !formData.amount) {
@@ -113,28 +215,27 @@ export default function ExpensesPage() {
     }
 
     try {
-      const res = await fetch("/api/expenses", {
-        method: "POST",
+      const isEdit = editingId !== null;
+      const url = isEdit ? `/api/expenses/${editingId}` : "/api/expenses";
+      const method = isEdit ? "PUT" : "POST";
+
+      // 💡 ແປງຈຳນວນເງິນທີ່ມີຈຸດ ເປັນ pure number ກ່ອນສົ່ງໄປ API
+      const payload = {
+        ...formData,
+        amount: parseFormattedNumber(formData.amount),
+      };
+
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
 
       if (res.ok) {
         fetchExpenses();
-        fetchBudgets(); // Refresh ງົບປະມານ
-        setShowAddModal(false);
-        setFormData({
-          referenceNo: "",
-          date: new Date().toISOString().split("T")[0],
-          category: "ຄ່າບໍລິຫານທົ່ວໄປ",
-          description: "",
-          disburser: "",
-          receiver: "",
-          amount: "",
-          budgetId: "",
-          budgetName: "",
-          remark: "",
-        });
+        fetchBudgets();
+        setShowModal(false);
+        alert(isEdit ? "ແກ້ໄຂຂໍ້ມູນສຳເລັດ!" : "ບັນທຶກຂໍ້ມູນສຳເລັດ!");
       } else {
         alert("ເກີດຂໍ້ຜິດພາດໃນການບັນທຶກ!");
       }
@@ -143,7 +244,44 @@ export default function ExpensesPage() {
     }
   };
 
-  // Import Excel
+  const handleDeleteOne = async (id: number) => {
+    if (!confirm("ທ່ານຕ້ອງການລົບລາຍການນີ້ແທ້ຫຼືບໍ່?")) return;
+    try {
+      const res = await fetch(`/api/expenses/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        fetchExpenses();
+        setSelectedIds(selectedIds.filter((i) => i !== id));
+      } else {
+        alert("ລົບຂໍ້ມູນບໍ່ສຳເລັດ!");
+      }
+    } catch (err) {
+      alert("ເກີດຂໍ້ຜິດພາດ!");
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    if (!confirm(`ທ່ານຕ້ອງການລົບ ${selectedIds.length} ລາຍການທີ່ເລືອກແທ້ຫຼືບໍ່?`)) return;
+
+    try {
+      const res = await fetch("/api/expenses", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: selectedIds }),
+      });
+
+      if (res.ok) {
+        fetchExpenses();
+        setSelectedIds([]);
+        alert("ລົບລາຍການທີ່ເລືອກສຳເລັດ!");
+      } else {
+        alert("ລົບຂໍ້ມູນບໍ່ສຳເລັດ!");
+      }
+    } catch (err) {
+      alert("ເກີດຂໍ້ຜິດພາດ!");
+    }
+  };
+
   const handleExcelImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -185,27 +323,15 @@ export default function ExpensesPage() {
 
   const totalAmount = expenses.reduce((sum, item) => sum + Number(item.amount), 0);
 
-  const filteredExpenses = expenses.filter(
-    (item) =>
-      (item.description && item.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (item.referenceNo && item.referenceNo.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (item.receiver && item.receiver.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (item.budgetName && item.budgetName.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
-
   return (
     <div className="flex w-full min-h-screen bg-slate-50 overflow-x-hidden">
-      <Sidebar 
-        userRole="ADMIN" 
-        isCollapsed={isCollapsed} 
-        setIsCollapsed={setIsCollapsed} 
-      />
+      <Sidebar userRole={userRole} isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} />
 
       <div className="flex-1 flex flex-col min-w-0 transition-all duration-300">
         <Navbar 
           title="ຈັດການລາຍຈ່າຍ (Expenses)" 
-          userName="ຜູ້ບໍລິຫານລະບົບ" 
-          userRole="ADMIN" 
+          userName="ຜູ້ໃຊ້ງານລະບົບ" 
+          userRole={userRole} 
           onToggleSidebar={() => setIsCollapsed(!isCollapsed)}
         />
 
@@ -222,49 +348,122 @@ export default function ExpensesPage() {
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-2.5 w-full sm:w-auto">
-              <button
-                onClick={() => setShowImportModal(true)}
-                className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 text-sm font-semibold rounded-xl border border-rose-200 transition-all"
-              >
-                <FileSpreadsheet className="w-4 h-4" />
-                <span>Import Excel</span>
-              </button>
+            {userRole !== "DIRECTOR" && (
+              <div className="flex flex-wrap gap-2.5 w-full sm:w-auto">
+                {selectedIds.length > 0 && (
+                  <button
+                    onClick={handleBulkDelete}
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-xl shadow-lg shadow-red-600/20 transition-all animate-pulse"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>ລົບ {selectedIds.length} ລາຍການ</span>
+                  </button>
+                )}
 
-              <button
-                onClick={() => setShowAddModal(true)}
-                className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-xl shadow-lg shadow-red-600/20 transition-all"
-              >
-                <Plus className="w-4 h-4" />
-                <span>ເພີ່ມລາຍຈ່າຍໃໝ່</span>
-              </button>
-            </div>
+                <button
+                  onClick={() => setShowImportModal(true)}
+                  className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 text-sm font-semibold rounded-xl border border-rose-200 transition-all"
+                >
+                  <FileSpreadsheet className="w-4 h-4" />
+                  <span>Import Excel</span>
+                </button>
+
+                <button
+                  onClick={handleOpenAdd}
+                  className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-xl shadow-lg shadow-red-600/20 transition-all"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>ເພີ່ມລາຍຈ່າຍໃໝ່</span>
+                </button>
+              </div>
+            )}
           </div>
 
-          {/* Table Card */}
+          {/* Search & Filters Card */}
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm space-y-4 p-5 w-full overflow-hidden">
-            <div className="flex items-center justify-between gap-4">
-              <div className="relative flex-1 max-w-md">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="relative flex-1 w-full max-w-md">
                 <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="ຄົ້ນຫາຕາມ ເລກບິນ, ເນື້ອໃນ, ຜູ້ຮັບ ຫຼື ຊື່ໂຄງການ..."
+                  placeholder="ຄົ້ນຫາ Realtime (ເລກບິນ, ເນື້ອໃນ, ຜູ້ຮັບ ຫຼື ຊື່ໂຄງການ)..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-600 focus:bg-white transition-all"
                 />
               </div>
 
-              <span className="text-xs font-medium text-slate-500">
-                ທັງໝົດ: <strong className="text-slate-800">{filteredExpenses.length}</strong> ລາຍການ
-              </span>
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-600 w-full md:w-auto justify-end">
+                <span>ສະແດງ:</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-red-600"
+                >
+                  <option value={10}>10 ແຖວ</option>
+                  <option value={20}>20 ແຖວ</option>
+                  <option value={50}>50 ແຖວ</option>
+                  <option value={100}>100 ແຖວ</option>
+                </select>
+              </div>
             </div>
 
+            {/* Column Filters */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100 text-xs">
+              <div className="flex items-center gap-2">
+                <Filter className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                <input
+                  type="text"
+                  placeholder="ກັ່ນຕອງ ເລກບິນ..."
+                  value={filterRef}
+                  onChange={(e) => setFilterRef(e.target.value)}
+                  className="w-full p-2 bg-white border rounded-lg focus:outline-none focus:ring-1 focus:ring-red-600"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Filter className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                <input
+                  type="text"
+                  placeholder="ກັ່ນຕອງ ໝວດໝູ່..."
+                  value={filterCategory}
+                  onChange={(e) => setFilterCategory(e.target.value)}
+                  className="w-full p-2 bg-white border rounded-lg focus:outline-none focus:ring-1 focus:ring-red-600"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Filter className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                <input
+                  type="text"
+                  placeholder="ກັ່ນຕອງ ຜູ້ຮັບເງິນ..."
+                  value={filterReceiver}
+                  onChange={(e) => setFilterReceiver(e.target.value)}
+                  className="w-full p-2 bg-white border rounded-lg focus:outline-none focus:ring-1 focus:ring-red-600"
+                />
+              </div>
+            </div>
+
+            {/* Table */}
             <div className="w-full overflow-x-auto rounded-xl border border-slate-100">
               <table className="w-full text-left text-sm text-slate-600 border-collapse">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold text-xs uppercase tracking-wider">
-                    <th className="py-3.5 px-4 text-center w-16">ລຳດັບ</th>
+                    {userRole !== "DIRECTOR" && (
+                      <th className="py-3.5 px-4 text-center w-10">
+                        <input
+                          type="checkbox"
+                          onChange={handleSelectAll}
+                          checked={
+                            paginatedExpenses.length > 0 &&
+                            paginatedExpenses.every((i) => selectedIds.includes(i.id))
+                          }
+                          className="w-4 h-4 rounded text-red-600 focus:ring-red-500 cursor-pointer"
+                        />
+                      </th>
+                    )}
+                    <th className="py-3.5 px-4 text-center w-12">ລຳດັບ</th>
                     <th className="py-3.5 px-4 whitespace-nowrap">ເລກບິນສັ່ງຈ່າຍ</th>
                     <th className="py-3.5 px-4 whitespace-nowrap">ວັນທີ</th>
                     <th className="py-3.5 px-4 whitespace-nowrap">ໝວດໝູ່</th>
@@ -273,14 +472,26 @@ export default function ExpensesPage() {
                     <th className="py-3.5 px-4 whitespace-nowrap">ຜູ້ຮັບເງິນ</th>
                     <th className="py-3.5 px-4 text-right whitespace-nowrap">ຈຳນວນເງິນ (ກີບ)</th>
                     <th className="py-3.5 px-4">ໝາຍເຫດ</th>
-                    <th className="py-3.5 px-4 text-center whitespace-nowrap">ຈັດການ</th>
+                    {userRole !== "DIRECTOR" && <th className="py-3.5 px-4 text-center whitespace-nowrap">ຈັດການ</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium">
-                  {filteredExpenses.length > 0 ? (
-                    filteredExpenses.map((item, index) => (
+                  {paginatedExpenses.length > 0 ? (
+                    paginatedExpenses.map((item, index) => (
                       <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="py-3.5 px-4 text-center font-bold text-slate-400">{index + 1}</td>
+                        {userRole !== "DIRECTOR" && (
+                          <td className="py-3.5 px-4 text-center">
+                            <input
+                              type="checkbox"
+                              checked={selectedIds.includes(item.id)}
+                              onChange={() => handleSelectOne(item.id)}
+                              className="w-4 h-4 rounded text-red-600 focus:ring-red-500 cursor-pointer"
+                            />
+                          </td>
+                        )}
+                        <td className="py-3.5 px-4 text-center font-bold text-slate-400">
+                          {(currentPage - 1) * pageSize + index + 1}
+                        </td>
                         <td className="py-3.5 px-4 font-semibold text-red-600 whitespace-nowrap">{item.referenceNo || "-"}</td>
                         <td className="py-3.5 px-4 whitespace-nowrap">{item.date}</td>
                         <td className="py-3.5 px-4 whitespace-nowrap">
@@ -304,21 +515,32 @@ export default function ExpensesPage() {
                           {Number(item.amount).toLocaleString()}
                         </td>
                         <td className="py-3.5 px-4 text-xs text-slate-400 max-w-xs truncate">{item.remark || "-"}</td>
-                        <td className="py-3.5 px-4 text-center whitespace-nowrap">
-                          <div className="flex justify-center items-center gap-1">
-                            <button className="p-1.5 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-blue-50">
-                              <Edit className="w-4 h-4" />
-                            </button>
-                            <button className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50">
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
+                        
+                        {userRole !== "DIRECTOR" && (
+                          <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                            <div className="flex justify-center items-center gap-1">
+                              <button
+                                onClick={() => handleOpenEdit(item)}
+                                className="p-1.5 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-all"
+                                title="ແກ້ໄຂ"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteOne(item.id)}
+                                className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-all"
+                                title="ລົບ"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        )}
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={10} className="py-12 text-center text-slate-400">
+                      <td colSpan={userRole !== "DIRECTOR" ? 11 : 9} className="py-12 text-center text-slate-400">
                         ບໍ່ພົບຂໍ້ມູນລາຍຈ່າຍໃນ Database
                       </td>
                     </tr>
@@ -326,17 +548,46 @@ export default function ExpensesPage() {
                 </tbody>
               </table>
             </div>
+
+            {/* Pagination Controls */}
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-2 border-t border-slate-100 text-xs text-slate-500 font-medium">
+              <span>
+                ສະແດງ {(currentPage - 1) * pageSize + 1} ຫາ {Math.min(currentPage * pageSize, filteredExpenses.length)} ຈາກທັງໝົດ {filteredExpenses.length} ລາຍການ
+              </span>
+
+              <div className="flex items-center gap-1">
+                <button
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(currentPage - 1)}
+                  className="p-2 border rounded-xl hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <span className="px-3 font-bold text-slate-800">
+                  ໜ້າ {currentPage} / {totalPages}
+                </span>
+                <button
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage(currentPage + 1)}
+                  className="p-2 border rounded-xl hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
           </div>
         </main>
       </div>
 
-      {/* Modal ເພີ່ມລາຍຈ່າຍໃໝ່ (ເພີ່ມ ໝວດໝູ່ + ຕັດຈາກງົບປະມານໂຄງການ) */}
-      {showAddModal && (
+      {/* Modal ເພີ່ມ / ແກ້ໄຂ ລາຍຈ່າຍ */}
+      {showModal && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-              <h3 className="font-bold text-lg text-slate-800">ເພີ່ມລາຍການລາຍຈ່າຍໃໝ່</h3>
-              <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600">
+              <h3 className="font-bold text-lg text-slate-800">
+                {editingId ? "ແກ້ໄຂຂໍ້ມູນລາຍຈ່າຍ" : "ເພີ່ມລາຍການລາຍຈ່າຍໃໝ່"}
+              </h3>
+              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-600">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -365,7 +616,6 @@ export default function ExpensesPage() {
                 </div>
               </div>
 
-              {/* 💡 ໝວດໝູ່ລາຍຈ່າຍ */}
               <div>
                 <label className="font-bold text-slate-700">ໝວດໝູ່ລາຍຈ່າຍ *</label>
                 <select
@@ -377,7 +627,6 @@ export default function ExpensesPage() {
                   <option value="ຄ່າເງິນເດືອນ ແລະ ເບ້ຍລ້ຽງ">ຄ່າເງິນເດືອນ ແລະ ເບ້ຍລ້ຽງ</option>
                   <option value="ຄ່າວັດຖຸອຸປະກອນ">ຄ່າວັດຖຸອຸປະກອນ / ສ້ອມແປງ</option>
                   <option value="ຄ່າຈັດຊື້ຊັບສິນ">ຄ່າຈັດຊື້ຊັບສິນໃໝ່</option>
-
                   <option value="ຄ່າເຝິກອົບຮົມ ແລະ ສາມະນາ">ຄ່າເຝິກອົບຮົມ ແລະ ສາມະນາ</option>
                   <option value="ຄ່າໃຊ້ຈ່າຍໂຄງການ">ຄ່າໃຊ້ຈ່າຍໂຄງການ</option>
                 </select>
@@ -395,7 +644,6 @@ export default function ExpensesPage() {
                 />
               </div>
 
-              {/* 💡 ຕັດຈາກງົບປະມານໂຄງການ (Dropdown ດຶງຈາກໜ້າງົບປະມານ) */}
               <div className="p-3.5 bg-amber-50/70 border border-amber-200 rounded-2xl space-y-1.5">
                 <label className="font-bold text-amber-900 text-xs flex items-center gap-1.5">
                   <FolderKanban className="w-4 h-4 text-amber-600" />
@@ -441,13 +689,17 @@ export default function ExpensesPage() {
                 </div>
               </div>
 
+              {/* 💡 ຊ່ອງປ້ອນຈຳນວນເງິນ ໃສ່ຈຸດອັດຕະໂນມັດຕອນພິມ */}
               <div>
                 <label className="font-bold text-slate-700">ຈຳນວນເງິນ (ກີບ) *</label>
                 <input
-                  type="number"
-                  placeholder="0.00"
+                  type="text"
+                  placeholder="0"
                   value={formData.amount}
-                  onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                  onChange={(e) => {
+                    const formatted = formatNumberInput(e.target.value);
+                    setFormData({ ...formData, amount: formatted });
+                  }}
                   className="w-full p-3 bg-slate-50 border rounded-xl mt-1 text-sm font-bold text-red-600 focus:outline-none focus:ring-2 focus:ring-red-600"
                   required
                 />
@@ -466,7 +718,7 @@ export default function ExpensesPage() {
               <div className="pt-2 flex gap-3">
                 <button
                   type="button"
-                  onClick={() => setShowAddModal(false)}
+                  onClick={() => setShowModal(false)}
                   className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl"
                 >
                   ຍົກເລີກ
@@ -475,7 +727,7 @@ export default function ExpensesPage() {
                   type="submit"
                   className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl shadow-lg shadow-red-600/20"
                 >
-                  ບັນທຶກລົງ Database
+                  {editingId ? "ອັບເດດຂໍ້ມູນ" : "ບັນທຶກລົງ Database"}
                 </button>
               </div>
             </form>

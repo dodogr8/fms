@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Sidebar from "@/components/Sidebar";
 import Navbar from "@/components/Navbar";
+import { formatNumberInput, parseFormattedNumber } from "@/lib/formatters";
 import { 
   Plus, 
   Search, 
@@ -16,8 +17,10 @@ import {
   CheckCircle2,
   AlertTriangle,
   FileText,
-  Image as ImageIcon,
-  Upload
+  Upload,
+  ChevronLeft,
+  ChevronRight,
+  Filter
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 
@@ -36,8 +39,24 @@ interface AssetItem {
 export default function AssetsPage() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [assets, setAssets] = useState<AssetItem[]>([]);
+  const [userRole, setUserRole] = useState<"ADMIN" | "DIRECTOR" | "FINANCE_STAFF" | "ASSET_STAFF">("ADMIN");
+
+  // Search & Filter
   const [searchTerm, setSearchTerm] = useState("");
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [filterCode, setFilterCode] = useState("");
+  const [filterCategory, setFilterCategory] = useState("");
+  const [filterAssigned, setFilterAssigned] = useState("");
+
+  // Checkbox & Bulk Selection
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+
+  // Pagination
+  const [pageSize, setPageSize] = useState<number>(10);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+
+  // Modals
+  const [showModal, setShowModal] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [selectedQR, setSelectedQR] = useState<AssetItem | null>(null);
 
   const [formData, setFormData] = useState({
@@ -51,9 +70,18 @@ export default function AssetsPage() {
     attachment: "",
   });
 
-  // ດຶງຂໍ້ມູນຊັບສິນຈາກ Database
   useEffect(() => {
     fetchAssets();
+
+    const savedUser = localStorage.getItem("user");
+    if (savedUser) {
+      try {
+        const parsed = JSON.parse(savedUser);
+        if (parsed.role) setUserRole(parsed.role);
+      } catch (e) {
+        console.error("Error parsing user role", e);
+      }
+    }
   }, []);
 
   const fetchAssets = async () => {
@@ -68,7 +96,46 @@ export default function AssetsPage() {
     }
   };
 
-  // ຈັດການອັບໂຫລດໄຟລ໌ (แปลงເປັນ Base64 ຊົ່ວຄາວເພື່ອເກັບລົງ DB)
+  // Realtime Filter Logic
+  const filteredAssets = useMemo(() => {
+    return assets.filter((item) => {
+      const matchSearch =
+        (item.name && item.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (item.assetCode && item.assetCode.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (item.assignedTo && item.assignedTo.toLowerCase().includes(searchTerm.toLowerCase()));
+
+      const matchCode = filterCode ? item.assetCode?.toLowerCase().includes(filterCode.toLowerCase()) : true;
+      const matchCategory = filterCategory ? item.categoryName?.toLowerCase().includes(filterCategory.toLowerCase()) : true;
+      const matchAssigned = filterAssigned ? item.assignedTo?.toLowerCase().includes(filterAssigned.toLowerCase()) : true;
+
+      return matchSearch && matchCode && matchCategory && matchAssigned;
+    });
+  }, [assets, searchTerm, filterCode, filterCategory, filterAssigned]);
+
+  // Pagination Logic
+  const totalPages = Math.ceil(filteredAssets.length / pageSize) || 1;
+  const paginatedAssets = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredAssets.slice(start, start + pageSize);
+  }, [filteredAssets, currentPage, pageSize]);
+
+  // Select All Logic
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      setSelectedIds(paginatedAssets.map((i) => i.id));
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  const handleSelectOne = (id: number) => {
+    if (selectedIds.includes(id)) {
+      setSelectedIds(selectedIds.filter((item) => item !== id));
+    } else {
+      setSelectedIds([...selectedIds, id]);
+    }
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -80,7 +147,36 @@ export default function AssetsPage() {
     }
   };
 
-  // ບັນທຶກຊັບສິນລົງ Database
+  const handleOpenAdd = () => {
+    setEditingId(null);
+    setFormData({
+      assetCode: "",
+      name: "",
+      categoryName: "ອຸປະກອນ IT",
+      purchaseDate: new Date().toISOString().split("T")[0],
+      price: "",
+      assignedTo: "",
+      status: "available",
+      attachment: "",
+    });
+    setShowModal(true);
+  };
+
+  const handleOpenEdit = (item: AssetItem) => {
+    setEditingId(item.id);
+    setFormData({
+      assetCode: item.assetCode || "",
+      name: item.name || "",
+      categoryName: item.categoryName || "ອຸປະກອນ IT",
+      purchaseDate: item.purchaseDate || new Date().toISOString().split("T")[0],
+      price: formatNumberInput(item.price.toString()), // 💡 ໃສ່ຈຸດອັດຕະໂນມັດຕອນເປີດ Modal ແກ້ໄຂ
+      assignedTo: item.assignedTo || "",
+      status: item.status || "available",
+      attachment: item.attachment || "",
+    });
+    setShowModal(true);
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name || !formData.price) {
@@ -89,30 +185,69 @@ export default function AssetsPage() {
     }
 
     try {
-      const res = await fetch("/api/assets", {
-        method: "POST",
+      const isEdit = editingId !== null;
+      const url = isEdit ? `/api/assets/${editingId}` : "/api/assets";
+      const method = isEdit ? "PUT" : "POST";
+
+      // 💡 ແປງມູນຄ່າທີ່ມີຈຸດ ເປັນ pure number ກ່ອນສົ່ງໄປ API
+      const payload = {
+        ...formData,
+        price: parseFormattedNumber(formData.price),
+      };
+
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
 
       if (res.ok) {
         fetchAssets();
-        setShowAddModal(false);
-        setFormData({
-          assetCode: "",
-          name: "",
-          categoryName: "ອຸປະກອນ IT",
-          purchaseDate: new Date().toISOString().split("T")[0],
-          price: "",
-          assignedTo: "",
-          status: "available",
-          attachment: "",
-        });
+        setShowModal(false);
+        alert(isEdit ? "ແກ້ໄຂຂໍ້ມູນສຳເລັດ!" : "ບັນທຶກຂໍ້ມູນສຳເລັດ!");
       } else {
         alert("ເກີດຂໍ້ຜິດພາດໃນການບັນທຶກ! ລະຫັດຊັບສິນອາດຈະຊ້ຳກັນ.");
       }
     } catch (err) {
       alert("ບໍ່ສາມາດເຊື່ອມຕໍ່ Server ໄດ້!");
+    }
+  };
+
+  const handleDeleteOne = async (id: number) => {
+    if (!confirm("ທ່ານຕ້ອງການລົບຊັບສິນນີ້ແທ້ຫຼືບໍ່?")) return;
+    try {
+      const res = await fetch(`/api/assets/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        fetchAssets();
+        setSelectedIds(selectedIds.filter((i) => i !== id));
+      } else {
+        alert("ລົບຂໍ້ມູນບໍ່ສຳເລັດ!");
+      }
+    } catch (err) {
+      alert("ເກີດຂໍ້ຜິດພາດ!");
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    if (!confirm(`ທ່ານຕ້ອງການລົບ ${selectedIds.length} ຊັບສິນທີ່ເລືອກແທ້ຫຼືບໍ່?`)) return;
+
+    try {
+      const res = await fetch("/api/assets", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: selectedIds }),
+      });
+
+      if (res.ok) {
+        fetchAssets();
+        setSelectedIds([]);
+        alert("ລົບລາຍການທີ່ເລືອກສຳເລັດ!");
+      } else {
+        alert("ລົບຂໍ້ມູນບໍ່ສຳເລັດ!");
+      }
+    } catch (err) {
+      alert("ເກີດຂໍ້ຜິດພາດ!");
     }
   };
 
@@ -129,31 +264,22 @@ export default function AssetsPage() {
     }
   };
 
-  const filteredAssets = assets.filter(
-    (item) =>
-      (item.name && item.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (item.assetCode && item.assetCode.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (item.assignedTo && item.assignedTo.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const totalAssetValue = assets.reduce((sum, item) => sum + Number(item.price), 0);
 
   return (
     <div className="flex w-full min-h-screen bg-slate-50 overflow-x-hidden">
-      <Sidebar 
-        userRole="ADMIN" 
-        isCollapsed={isCollapsed} 
-        setIsCollapsed={setIsCollapsed} 
-      />
+      <Sidebar userRole={userRole} isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} />
 
       <div className="flex-1 flex flex-col min-w-0 transition-all duration-300">
         <Navbar 
           title="ຄຸ້ມຄອງຊັບສິນ (Assets)" 
-          userName="ຜູ້ບໍລິຫານລະບົບ" 
-          userRole="ADMIN" 
+          userName="ຜູ້ໃຊ້ງານລະບົບ" 
+          userRole={userRole} 
           onToggleSidebar={() => setIsCollapsed(!isCollapsed)}
         />
 
         <main className="p-6 space-y-6 w-full max-w-full overflow-hidden">
-          {/* Header Summary */}
+          {/* Header Card Summary */}
           <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div className="flex items-center gap-4">
               <div className="p-3.5 bg-green-50 text-green-600 rounded-2xl border border-green-100">
@@ -161,61 +287,145 @@ export default function AssetsPage() {
               </div>
               <div>
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">ມູນຄ່າຊັບສິນລວມທັງໝົດ</p>
-                <h2 className="text-3xl font-black text-slate-900">
-                  {assets.reduce((sum, item) => sum + Number(item.price), 0).toLocaleString()} ກີບ
-                </h2>
+                <h2 className="text-3xl font-black text-slate-900">{totalAssetValue.toLocaleString()} ກີບ</h2>
               </div>
             </div>
 
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="flex items-center justify-center gap-2 px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-xl shadow-lg shadow-green-600/20 transition-all w-full sm:w-auto"
-            >
-              <Plus className="w-4 h-4" />
-              <span>ເພີ່ມຊັບສິນໃໝ່</span>
-            </button>
+            {userRole !== "DIRECTOR" && (
+              <div className="flex flex-wrap gap-2.5 w-full sm:w-auto">
+                {selectedIds.length > 0 && (
+                  <button
+                    onClick={handleBulkDelete}
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-xl shadow-lg shadow-red-600/20 transition-all animate-pulse"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>ລົບ {selectedIds.length} ລາຍການ</span>
+                  </button>
+                )}
+
+                <button
+                  onClick={handleOpenAdd}
+                  className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-xl shadow-lg shadow-green-600/20 transition-all"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>ເພີ່ມຊັບສິນໃໝ່</span>
+                </button>
+              </div>
+            )}
           </div>
 
-          {/* Table Card */}
+          {/* Search & Filters */}
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm space-y-4 p-5 w-full overflow-hidden">
-            <div className="flex items-center justify-between gap-4">
-              <div className="relative flex-1 max-w-md">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="relative flex-1 w-full max-w-md">
                 <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="ຄົ້ນຫາຕາມ ລະຫັດ, ຊື່ຊັບສິນ ຫຼື ຜູ້ຮັບຜິດຊອບ..."
+                  placeholder="ຄົ້ນຫາ Realtime (ລະຫັດ, ຊື່, ຜູ້ຮັບຜິດຊອບ)..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-600 focus:bg-white transition-all"
                 />
               </div>
 
-              <span className="text-xs font-medium text-slate-500">
-                ທັງໝົດ: <strong className="text-slate-800">{filteredAssets.length}</strong> ລາຍການ
-              </span>
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-600 w-full md:w-auto justify-end">
+                <span>ສະແດງ:</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-green-600"
+                >
+                  <option value={10}>10 ແຖວ</option>
+                  <option value={20}>20 ແຖວ</option>
+                  <option value={50}>50 ແຖວ</option>
+                  <option value={100}>100 ແຖວ</option>
+                </select>
+              </div>
             </div>
 
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100 text-xs">
+              <div className="flex items-center gap-2">
+                <Filter className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                <input
+                  type="text"
+                  placeholder="ກັ່ນຕອງ ລະຫັດ..."
+                  value={filterCode}
+                  onChange={(e) => setFilterCode(e.target.value)}
+                  className="w-full p-2 bg-white border rounded-lg focus:outline-none focus:ring-1 focus:ring-green-600"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Filter className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                <input
+                  type="text"
+                  placeholder="ກັ່ນຕອງ ໝວດໝູ່..."
+                  value={filterCategory}
+                  onChange={(e) => setFilterCategory(e.target.value)}
+                  className="w-full p-2 bg-white border rounded-lg focus:outline-none focus:ring-1 focus:ring-green-600"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Filter className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                <input
+                  type="text"
+                  placeholder="ກັ່ນຕອງ ຜູ້ຮັບຜິດຊອບ..."
+                  value={filterAssigned}
+                  onChange={(e) => setFilterAssigned(e.target.value)}
+                  className="w-full p-2 bg-white border rounded-lg focus:outline-none focus:ring-1 focus:ring-green-600"
+                />
+              </div>
+            </div>
+
+            {/* Table */}
             <div className="w-full overflow-x-auto rounded-xl border border-slate-100">
               <table className="w-full text-left text-sm text-slate-600 border-collapse">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold text-xs uppercase tracking-wider">
-                    <th className="py-3.5 px-4 text-center w-16">ລຳດັບ</th>
+                    {userRole !== "DIRECTOR" && (
+                      <th className="py-3.5 px-4 text-center w-10">
+                        <input
+                          type="checkbox"
+                          onChange={handleSelectAll}
+                          checked={
+                            paginatedAssets.length > 0 &&
+                            paginatedAssets.every((i) => selectedIds.includes(i.id))
+                          }
+                          className="w-4 h-4 rounded text-green-600 focus:ring-green-500 cursor-pointer"
+                        />
+                      </th>
+                    )}
+                    <th className="py-3.5 px-4 text-center w-12">ລຳດັບ</th>
                     <th className="py-3.5 px-4 whitespace-nowrap">ລະຫັດຊັບສິນ</th>
-                    <th className="py-3.5 px-4 min-w-[200px]">ຊື່ຊັບສິນ</th>
+                    <th className="py-3.5 px-4 min-w-[180px]">ຊື່ຊັບສິນ</th>
                     <th className="py-3.5 px-4 whitespace-nowrap">ໝວດໝູ່</th>
                     <th className="py-3.5 px-4 whitespace-nowrap">ມູນຄ່າ (ກີບ)</th>
                     <th className="py-3.5 px-4 whitespace-nowrap">ຜູ້ຮັບຜິດຊອບ</th>
                     <th className="py-3.5 px-4 whitespace-nowrap">ສະຖານະ</th>
                     <th className="py-3.5 px-4 text-center whitespace-nowrap">ເອກະສານ/ຮູບ</th>
                     <th className="py-3.5 px-4 text-center whitespace-nowrap">QR Code</th>
-                    <th className="py-3.5 px-4 text-center whitespace-nowrap">ຈັດການ</th>
+                    {userRole !== "DIRECTOR" && <th className="py-3.5 px-4 text-center whitespace-nowrap">ຈັດການ</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium">
-                  {filteredAssets.length > 0 ? (
-                    filteredAssets.map((item, index) => (
+                  {paginatedAssets.length > 0 ? (
+                    paginatedAssets.map((item, index) => (
                       <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="py-3.5 px-4 text-center font-bold text-slate-400">{index + 1}</td>
+                        {userRole !== "DIRECTOR" && (
+                          <td className="py-3.5 px-4 text-center">
+                            <input
+                              type="checkbox"
+                              checked={selectedIds.includes(item.id)}
+                              onChange={() => handleSelectOne(item.id)}
+                              className="w-4 h-4 rounded text-green-600 focus:ring-green-500 cursor-pointer"
+                            />
+                          </td>
+                        )}
+                        <td className="py-3.5 px-4 text-center font-bold text-slate-400">
+                          {(currentPage - 1) * pageSize + index + 1}
+                        </td>
                         <td className="py-3.5 px-4 font-semibold text-green-700 whitespace-nowrap">{item.assetCode}</td>
                         <td className="py-3.5 px-4 font-bold text-slate-900">{item.name}</td>
                         <td className="py-3.5 px-4 whitespace-nowrap">{item.categoryName}</td>
@@ -246,21 +456,32 @@ export default function AssetsPage() {
                             <QrCode className="w-4 h-4" />
                           </button>
                         </td>
-                        <td className="py-3.5 px-4 text-center whitespace-nowrap">
-                          <div className="flex justify-center items-center gap-1">
-                            <button className="p-1.5 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-blue-50">
-                              <Edit className="w-4 h-4" />
-                            </button>
-                            <button className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50">
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
+
+                        {userRole !== "DIRECTOR" && (
+                          <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                            <div className="flex justify-center items-center gap-1">
+                              <button
+                                onClick={() => handleOpenEdit(item)}
+                                className="p-1.5 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-all"
+                                title="ແກ້ໄຂ"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteOne(item.id)}
+                                className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-all"
+                                title="ລົບ"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        )}
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={10} className="py-12 text-center text-slate-400">
+                      <td colSpan={userRole !== "DIRECTOR" ? 11 : 9} className="py-12 text-center text-slate-400">
                         ບໍ່ພົບຂໍ້ມູນຊັບສິນໃນ Database
                       </td>
                     </tr>
@@ -268,17 +489,46 @@ export default function AssetsPage() {
                 </tbody>
               </table>
             </div>
+
+            {/* Pagination Controls */}
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-2 border-t border-slate-100 text-xs text-slate-500 font-medium">
+              <span>
+                ສະແດງ {(currentPage - 1) * pageSize + 1} ຫາ {Math.min(currentPage * pageSize, filteredAssets.length)} ຈາກທັງໝົດ {filteredAssets.length} ລາຍການ
+              </span>
+
+              <div className="flex items-center gap-1">
+                <button
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(currentPage - 1)}
+                  className="p-2 border rounded-xl hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <span className="px-3 font-bold text-slate-800">
+                  ໜ້າ {currentPage} / {totalPages}
+                </span>
+                <button
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage(currentPage + 1)}
+                  className="p-2 border rounded-xl hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
           </div>
         </main>
       </div>
 
-      {/* Modal ເພີ່ມຊັບສິນໃໝ່ (ພ້ອມອັບໂຫລດໄຟລ໌) */}
-      {showAddModal && (
+      {/* Modal ເພີ່ມ / ແກ້ໄຂ ຊັບສິນ */}
+      {showModal && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-              <h3 className="font-bold text-lg text-slate-800">ເພີ່ມຂໍ້ມູນຊັບສິນໃໝ່</h3>
-              <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600">
+              <h3 className="font-bold text-lg text-slate-800">
+                {editingId ? "ແກ້ໄຂຂໍ້ມູນຊັບສິນ" : "ເພີ່ມຂໍ້ມູນຊັບສິນໃໝ່"}
+              </h3>
+              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-600">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -323,13 +573,17 @@ export default function AssetsPage() {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
+                {/* 💡 ຊ່ອງປ້ອນມູນຄ່າຊັບສິນ ໃສ່ຈຸດອັດຕະໂນມັດຕອນພິມ */}
                 <div>
                   <label className="font-bold text-slate-700">ມູນຄ່າຊື້ (ກີບ) *</label>
                   <input
-                    type="number"
-                    placeholder="0.00"
+                    type="text"
+                    placeholder="0"
                     value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                    onChange={(e) => {
+                      const formatted = formatNumberInput(e.target.value);
+                      setFormData({ ...formData, price: formatted });
+                    }}
                     className="w-full p-3 bg-slate-50 border rounded-xl mt-1 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-green-600"
                     required
                   />
@@ -371,7 +625,6 @@ export default function AssetsPage() {
                 </div>
               </div>
 
-              {/* 💡 ສ່ວນອັບໂຫລດຮູບພາບ ຫຼື ເອກະສານ */}
               <div className="p-4 bg-emerald-50/60 border border-emerald-200 rounded-2xl space-y-2">
                 <label className="font-bold text-emerald-900 text-xs flex items-center gap-1.5">
                   <Upload className="w-4 h-4 text-emerald-600" />
@@ -391,7 +644,7 @@ export default function AssetsPage() {
               <div className="pt-2 flex gap-3">
                 <button
                   type="button"
-                  onClick={() => setShowAddModal(false)}
+                  onClick={() => setShowModal(false)}
                   className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl"
                 >
                   ຍົກເລີກ
@@ -400,7 +653,7 @@ export default function AssetsPage() {
                   type="submit"
                   className="flex-1 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow-lg shadow-green-600/20"
                 >
-                  ບັນທຶກລົງ Database
+                  {editingId ? "ອັບເດດຂໍ້ມູນ" : "ບັນທຶກລົງ Database"}
                 </button>
               </div>
             </form>

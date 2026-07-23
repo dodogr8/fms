@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-// GET: ດຶງຂໍ້ມູນຊັບສິນທັງໝົດ
+// GET: ດຶງຂໍ້ມູນຊັບສິນທັງໝົດ (ລຽງຕາມ purchaseDate ແລະ createdAt ລ່າສຸດ)
 export async function GET() {
   try {
     const assets = await prisma.asset.findMany({
-      orderBy: { id: "desc" },
+      orderBy: [
+        { purchaseDate: "desc" },
+        { createdAt: "desc" },
+      ],
     });
     return NextResponse.json(assets);
   } catch (error) {
@@ -34,7 +37,7 @@ export async function POST(request: Request) {
         price: parseFloat(price),
         assignedTo: assignedTo || "ຍັງບໍ່ມີຜູ້ຮັບຜິດຊອບ",
         status: status || "available",
-        attachment: attachment || null, // ບັນທຶກຊື່ໄຟລ໌
+        attachment: attachment || null,
       },
     });
 
@@ -42,5 +45,23 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("Asset Post Error:", error);
     return NextResponse.json({ message: "ບັນທຶກຂໍ້ມູນຊັບສິນບໍ່ສຳເລັດ" }, { status: 500 });
+  }
+}
+
+// DELETE: ລົບຫຼາຍລາຍການ (Bulk Delete)
+export async function DELETE(request: Request) {
+  try {
+    const { ids } = await request.json();
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return NextResponse.json({ message: "ກະລຸນາເລືອກລາຍການທີ່ຕ້ອງການລົບ" }, { status: 400 });
+    }
+
+    await prisma.asset.deleteMany({
+      where: { id: { in: ids.map((id) => Number(id)) } },
+    });
+
+    return NextResponse.json({ message: "ລົບຂໍ້ມູນສຳເລັດ" });
+  } catch (error) {
+    return NextResponse.json({ message: "ບໍ່ສາມາດລົບຂໍ້ມູນໄດ້" }, { status: 500 });
   }
 }

@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-// GET: ດຶງຂໍ້ມູນງົບປະມານທັງໝົດ
+// GET: ດຶງຂໍ້ມູນງົບປະມານທັງໝົດ (ລຽງຕາມ startDate ແລະ createdAt ລ່າສຸດ)
 export async function GET() {
   try {
     const budgets = await prisma.budget.findMany({
-      orderBy: { id: "desc" },
+      orderBy: [
+        { startDate: "desc" },
+        { createdAt: "desc" },
+      ],
     });
     return NextResponse.json(budgets);
   } catch (error) {
@@ -13,7 +16,7 @@ export async function GET() {
   }
 }
 
-// POST: ບັນທຶກງົບປະມານໃໝ່ + ສ້າງລາຍຮັບອັດຕະໂນມັດຖ້າມີການຫັກເງິນບໍລິຫານ
+// POST: ບັນທຶກງົບປະມານໂຄງການໃໝ່
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -21,49 +24,53 @@ export async function POST(request: Request) {
       projectName, 
       categoryName, 
       totalAmount, 
-      isDeduct, 
       deductType, 
       deductValue, 
-      deductAmount, 
-      netAmount, 
       startDate, 
       endDate, 
       detail 
     } = body;
 
     if (!projectName || !totalAmount) {
-      return NextResponse.json({ message: "ກະລຸນາປ້ອນຂໍ້ມູນໃຫ້ຄົບຖ້ວນ" }, { status: 400 });
+      return NextResponse.json({ message: "ກະລຸນາປ້ອນຊື່ໂຄງການ ແລະ ງົບປະມານລວມ" }, { status: 400 });
     }
 
-    // 1. ບັນທຶກຂໍ້ມູນ Budget
+    const total = parseFloat(totalAmount);
+    const dValue = deductValue ? parseFloat(deductValue) : 0;
+    
+    let adminFee = 0;
+    if (deductType === "percent") {
+      adminFee = (total * dValue) / 100;
+    } else {
+      adminFee = dValue;
+    }
+
+    const netAmount = total - adminFee;
+
     const newBudget = await prisma.budget.create({
       data: {
         projectName,
-        categoryName,
-        totalAmount: parseFloat(totalAmount),
-        isDeduct: Boolean(isDeduct),
-        deductType,
-        deductValue: parseFloat(deductValue || 0),
-        deductAmount: parseFloat(deductAmount || 0),
-        netAmount: parseFloat(netAmount),
+        categoryName: categoryName || "ໂຄງການພັດທະນາ",
+        totalAmount: total,
+        adminFee,
+        netAmount,
         usedAmount: 0,
-        startDate,
-        endDate,
-        detail,
+        startDate: startDate || new Date().toISOString().split("T")[0],
+        endDate: endDate || "",
+        detail: detail || "",
       },
     });
 
-    // 2. 💡 ຖ້າມີການຫັກເງິນບໍລິຫານ > ໃຫ້ບັນທຶກເຂົ້າເປັນລາຍຮັບ (Income) ອັດຕະໂນມັດ!
-    if (isDeduct && parseFloat(deductAmount) > 0) {
+    if (adminFee > 0) {
       await prisma.income.create({
         data: {
-          referenceNo: `ADM-${Date.now().toString().slice(-4)}`,
+          referenceNo: `ADM-${newBudget.id}`,
           date: startDate || new Date().toISOString().split("T")[0],
-          description: `ຫັກເງິນບໍລິຫານຈາກໂຄງການ: ${projectName}`,
-          disburser: projectName,
-          receiver: "ຄັງເງິນບໍລິຫານຫ້ອງການ",
-          amount: parseFloat(deductAmount),
-          remark: `ສ່ວນແບ່ງບໍລິຫານ ${deductType === "percent" ? `${deductValue}%` : "ເງິນສົດ"}`,
+          description: `ເງິນບໍລິຫານ (%) ຕັດຈາກໂຄງການ: ${projectName}`,
+          disburser: "ໂຄງການງົບປະມານ",
+          receiver: "ຄັງເງິນບໍລິຫານ",
+          amount: adminFee,
+          remark: `ຕັດບໍລິຫານ ${deductType === 'percent' ? `${dValue}%` : `${dValue.toLocaleString()} ກີບ`}`,
         },
       });
     }
@@ -72,5 +79,23 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("Budget Post Error:", error);
     return NextResponse.json({ message: "ບັນທຶກຂໍ້ມູນງົບປະມານບໍ່ສຳເລັດ" }, { status: 500 });
+  }
+}
+
+// DELETE: ລົບຫຼາຍລາຍການ (Bulk Delete)
+export async function DELETE(request: Request) {
+  try {
+    const { ids } = await request.json();
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return NextResponse.json({ message: "ກະລຸນາເລືອກລາຍການທີ່ຕ້ອງການລົບ" }, { status: 400 });
+    }
+
+    await prisma.budget.deleteMany({
+      where: { id: { in: ids.map((id) => Number(id)) } },
+    });
+
+    return NextResponse.json({ message: "ລົບຂໍ້ມູນສຳເລັດ" });
+  } catch (error) {
+    return NextResponse.json({ message: "ບໍ່ສາມາດລົບຂໍ້ມູນໄດ້" }, { status: 500 });
   }
 }

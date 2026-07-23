@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { 
@@ -17,22 +18,38 @@ import {
 } from "lucide-react";
 
 interface SidebarProps {
-  userRole?: "ADMIN" | "DIRECTOR" | "FINANCE_STAFF" | "ASSET_STAFF";
+  userRole?: string;
   isCollapsed: boolean;
   setIsCollapsed: (value: boolean) => void;
 }
 
 export default function Sidebar({ 
-  userRole = "ADMIN", 
+  userRole: initialRole, 
   isCollapsed, 
   setIsCollapsed 
 }: SidebarProps) {
   const pathname = usePathname();
+  const [currentRole, setCurrentRole] = useState<string>(initialRole || "FINANCE_STAFF");
 
-  // ກຳນົດສິດທິການເຫັນເມນູຢ່າງເດັດຂາດ
+  // 💡 ດຶງ Role ຈາກ LocalStorage ອັດຕະໂນມັດ ຕອນເປີດໜ້າຈໍ
+  useEffect(() => {
+    const savedUser = localStorage.getItem("user");
+    if (savedUser) {
+      try {
+        const parsed = JSON.parse(savedUser);
+        if (parsed.role) {
+          setCurrentRole(parsed.role);
+        }
+      } catch (e) {
+        console.error("Error reading role from localStorage", e);
+      }
+    }
+  }, [initialRole]);
+
+  // ກຳນົດສິດທິການເຫັນເມນູ
   const menuItems = [
     {
-      title: "ໜ້າຫຼັກ (Dashboard)",
+      title: "ໜ້າຫຼັກ",
       href: "/dashboard",
       icon: LayoutDashboard,
       roles: ["ADMIN", "DIRECTOR", "FINANCE_STAFF", "ASSET_STAFF"],
@@ -59,8 +76,7 @@ export default function Sidebar({
       title: "ຄຸ້ມຄອງຊັບສິນ",
       href: "/assets",
       icon: Package,
-      // 💡 ສະເພາະ Admin, Director, ແລະ ພະນັກງານຊັບສິນ ເທົ່ານັ້ນ (Finance Staff ຈະບໍ່ເຫັນ)
-      roles: ["ADMIN", "DIRECTOR", "ASSET_STAFF"], 
+      roles: ["ADMIN", "DIRECTOR", "ASSET_STAFF"],
     },
     {
       title: "ອອກບົດລາຍງານ",
@@ -72,11 +88,12 @@ export default function Sidebar({
       title: "ການຕັ້ງຄ່າລະບົບ",
       href: "/settings",
       icon: Settings,
-      roles: ["ADMIN"],
+      roles: ["ADMIN"], // 🔒 ສະເພາະ ADMIN ເທົ່ານັ້ນ! (DIRECTOR, FINANCE, ASSET ຈະບໍ່ເຫັນ)
     },
   ];
 
-  const filteredMenu = menuItems.filter((item) => item.roles.includes(userRole));
+  // ກັ່ນຕອງເມນູຕາມ Role ຕົວຈິງ
+  const filteredMenu = menuItems.filter((item) => item.roles.includes(currentRole));
 
   return (
     <aside 

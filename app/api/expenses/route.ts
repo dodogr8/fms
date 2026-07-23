@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-// GET: ດຶງຂໍ້ມູນລາຍຈ່າຍທັງໝົດ
+// GET: ດຶງຂໍ້ມູນລາຍຈ່າຍທັງໝົດ (ລຽງຕາມວັນທີ ແລະ createdAt ລ່າສຸດ)
 export async function GET() {
   try {
     const expenses = await prisma.expense.findMany({
-      orderBy: { id: "desc" },
+      orderBy: [
+        { date: "desc" },
+        { createdAt: "desc" },
+      ],
     });
     return NextResponse.json(expenses);
   } catch (error) {
@@ -36,7 +39,6 @@ export async function POST(request: Request) {
 
     const numericAmount = parseFloat(amount);
 
-    // 1. ບັນທຶກລາຍຈ່າຍ
     const newExpense = await prisma.expense.create({
       data: {
         referenceNo,
@@ -52,14 +54,11 @@ export async function POST(request: Request) {
       },
     });
 
-    // 2. 💡 ຖ້າມີການຕັດຈາກງົບປະມານໂຄງການ > ອັບເດດ usedAmount ໃນ Model Budget ອັດຕະໂນມັດ!
     if (budgetId) {
       await prisma.budget.update({
         where: { id: parseInt(budgetId) },
         data: {
-          usedAmount: {
-            increment: numericAmount, // ບວກຍອດໃຊ້ໄປເພີ່ມ
-          },
+          usedAmount: { increment: numericAmount },
         },
       });
     }
@@ -68,5 +67,23 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("Expense Post Error:", error);
     return NextResponse.json({ message: "ບັນທຶກຂໍ້ມູນລາຍຈ່າຍບໍ່ສຳເລັດ" }, { status: 500 });
+  }
+}
+
+// DELETE: ລົບຫຼາຍລາຍການ (Bulk Delete)
+export async function DELETE(request: Request) {
+  try {
+    const { ids } = await request.json();
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return NextResponse.json({ message: "ກະລຸນາເລືອກລາຍການທີ່ຕ້ອງການລົບ" }, { status: 400 });
+    }
+
+    await prisma.expense.deleteMany({
+      where: { id: { in: ids.map((id) => Number(id)) } },
+    });
+
+    return NextResponse.json({ message: "ລົບຂໍ້ມູນສຳເລັດ" });
+  } catch (error) {
+    return NextResponse.json({ message: "ບໍ່ສາມາດລົບຂໍ້ມູນໄດ້" }, { status: 500 });
   }
 }
