@@ -9,9 +9,7 @@ import {
   Database, 
   ShieldCheck, 
   FolderTree, 
-  ChevronRight, 
-  Bell, 
-  Lock
+  ChevronRight
 } from "lucide-react";
 import Link from "next/link";
 
@@ -61,7 +59,8 @@ export default function SettingsPage() {
             {/* 1. ຈັດການໝວດໝູ່ (Dynamic Categories) */}
             <Link 
               href="/settings/categories"
-              className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm hover:border-indigo-500 hover:shadow-md transition-all flex items-center justify-between group">
+              className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm hover:border-indigo-500 hover:shadow-md transition-all flex items-center justify-between group"
+            >
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl group-hover:bg-indigo-600 group-hover:text-white transition-all">
                   <FolderTree className="w-6 h-6" />
@@ -74,20 +73,21 @@ export default function SettingsPage() {
               <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-indigo-600 group-hover:translate-x-1 transition-all" />
             </Link>
 
-            {/* 2. ຈັດການຜູ້ໃຊ້ງານ (Users Management - ສະເພາະ Admin) */}
+            {/* 2. ຈັດການຜູ້ໃຊ້ງານ (Users Management) */}
             <Link 
               href="/settings/users"
-              className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between opacity-80">
+              className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm hover:border-blue-500 hover:shadow-md transition-all flex items-center justify-between group"
+            >
               <div className="flex items-center gap-4">
-                <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
+                <div className="p-3 bg-blue-50 text-blue-600 rounded-xl group-hover:bg-blue-600 group-hover:text-white transition-all">
                   <Users className="w-6 h-6" />
                 </div>
                 <div>
                   <h3 className="font-bold text-slate-800 text-sm">ຈັດການສິດທິຜູ້ໃຊ້ງານ (Users)</h3>
-                  <p className="text-xs text-slate-400 mt-0.5">ກຳນົດສິດ ADMIN, DIRECTOR, FINANCE</p>
+                  <p className="text-xs text-slate-400 mt-0.5">ເພີ່ມ/ແກ້ໄຂ ຜູ້ໃຊ້, ກຳນົດສິດ ADMIN, DIRECTOR, FINANCE</p>
                 </div>
               </div>
-              <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-indigo-600 group-hover:translate-x-1 transition-all" />
+              <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-all" />
             </Link>
 
             {/* 3. ສຳຮອງຂໍ້ມູນ (Database Backup) */}

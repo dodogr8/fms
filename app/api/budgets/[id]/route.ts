@@ -1,51 +1,61 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-// PUT: ແກ້ໄຂງົບປະມານ
 export async function PUT(
-  request: Request,
+  req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const resolvedParams = await params;
+    // 💡 ຮອງຮັບ Next.js ທັງເວີຊັນ 14 ແລະ 15
+    const resolvedParams = await params; 
     const budgetId = parseInt(resolvedParams.id);
-    const body = await request.json();
 
-    const total = parseFloat(body.totalAmount);
-    const dValue = body.deductValue ? parseFloat(body.deductValue) : 0;
-    
-    let adminFee = 0;
-    if (body.deductType === "percent") {
-      adminFee = (total * dValue) / 100;
-    } else {
-      adminFee = dValue;
+    let body: any = {};
+    try {
+      body = await req.json();
+    } catch (e) {
+      return NextResponse.json({ message: "ຮູບແບບຂໍ້ມູນບໍ່ຖືກຕ້ອງ" }, { status: 400 });
     }
 
-    const netAmount = total - adminFee;
+    const { projectName, categoryName, totalAmount, startDate, endDate, detail } = body;
+
+    const parsedTotal = Number(totalAmount) || 0;
+
+    const existingBudget = await prisma.budget.findUnique({
+      where: { id: budgetId },
+    });
+
+    if (!existingBudget) {
+      return NextResponse.json({ message: "ບໍ່ພົບຂໍ້ມູນໂຄງການ" }, { status: 404 });
+    }
+
+    const netAmount = parsedTotal - Number(existingBudget.deductAmount || 0);
 
     const updatedBudget = await prisma.budget.update({
       where: { id: budgetId },
       data: {
-        projectName: body.projectName,
-        categoryName: body.categoryName,
-        totalAmount: total,
-        adminFee,
-        netAmount,
-        startDate: body.startDate,
-        endDate: body.endDate,
-        detail: body.detail,
+        projectName: String(projectName),
+        categoryName: categoryName ? String(categoryName) : "ງົບປະມານໂຄງການ",
+        totalAmount: parsedTotal,
+        netAmount: netAmount,
+        startDate: startDate ? String(startDate) : existingBudget.startDate,
+        endDate: endDate ? String(endDate) : existingBudget.endDate,
+        detail: detail ? String(detail) : existingBudget.detail,
       },
     });
 
     return NextResponse.json(updatedBudget);
-  } catch (error) {
-    return NextResponse.json({ message: "ບໍ່ສາມາດແກ້ໄຂຂໍ້ມູນໄດ້" }, { status: 500 });
+  } catch (error: any) {
+    console.error("PUT Budget Error:", error);
+    return NextResponse.json(
+      { message: error?.message || "ບໍ່ສາມາດອັບເດດຂໍ້ມູນງົບປະມານໄດ້" },
+      { status: 500 }
+    );
   }
 }
 
-// DELETE: ລົບງົບປະມານ 1 ລາຍການ
 export async function DELETE(
-  request: Request,
+  req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
@@ -56,8 +66,12 @@ export async function DELETE(
       where: { id: budgetId },
     });
 
-    return NextResponse.json({ message: "ລົບຂໍ້ມູນສຳເລັດ" });
+    return NextResponse.json({ message: "ລົບງົບປະມານສຳເລັດ" });
   } catch (error) {
-    return NextResponse.json({ message: "ບໍ່ສາມາດລົບຂໍ້ມູນໄດ້" }, { status: 500 });
+    console.error("DELETE Budget Error:", error);
+    return NextResponse.json(
+      { message: "ບໍ່ສາມາດລົບງົບປະມານໄດ້" },
+      { status: 500 }
+    );
   }
 }

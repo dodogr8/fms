@@ -23,6 +23,7 @@ interface IncomeTransaction {
   id: number;
   referenceNo: string;
   date: string;
+  category?: string;
   description: string;
   disburser: string;
   receiver: string;
@@ -30,9 +31,16 @@ interface IncomeTransaction {
   remark: string;
 }
 
+interface CategoryItem {
+  id: number;
+  name: string;
+  children: { id: number; name: string }[];
+}
+
 export default function IncomesPage() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [incomes, setIncomes] = useState<IncomeTransaction[]>([]);
+  const [categories, setCategories] = useState<CategoryItem[]>([]); // 💡 State ເກັບໝວດໝູ່ຈາກ DB
   const [userRole, setUserRole] = useState<"ADMIN" | "DIRECTOR" | "FINANCE_STAFF" | "ASSET_STAFF">("ADMIN");
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -51,6 +59,7 @@ export default function IncomesPage() {
   const [formData, setFormData] = useState({
     referenceNo: "",
     date: new Date().toISOString().split("T")[0],
+    category: "",
     description: "",
     disburser: "",
     receiver: "",
@@ -60,6 +69,7 @@ export default function IncomesPage() {
 
   useEffect(() => {
     fetchIncomes();
+    fetchCategories(); // 💡 ດຶງໝວດໝູ່ຈາກ DB
 
     const savedUser = localStorage.getItem("user");
     if (savedUser) {
@@ -81,6 +91,19 @@ export default function IncomesPage() {
       }
     } catch (err) {
       console.error("Fetch Incomes Error:", err);
+    }
+  };
+
+  // 💡 ດຶງໝວດໝູ່ປະເພດ INCOME
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch("/api/categories?type=INCOME");
+      if (res.ok) {
+        const data = await res.json();
+        setCategories(data);
+      }
+    } catch (err) {
+      console.error("Fetch Categories Error:", err);
     }
   };
 
@@ -127,6 +150,7 @@ export default function IncomesPage() {
     setFormData({
       referenceNo: "",
       date: new Date().toISOString().split("T")[0],
+      category: categories.length > 0 ? categories[0].name : "",
       description: "",
       disburser: "",
       receiver: "",
@@ -141,10 +165,11 @@ export default function IncomesPage() {
     setFormData({
       referenceNo: item.referenceNo || "",
       date: item.date || new Date().toISOString().split("T")[0],
+      category: item.category || "",
       description: item.description || "",
       disburser: item.disburser || "",
       receiver: item.receiver || "",
-      amount: formatNumberInput(item.amount.toString()), // 💡 ໃສ່ຈຸດໃຫ້ຕອນດຶງມາແກ້ໄຂ
+      amount: formatNumberInput(item.amount.toString()),
       remark: item.remark || "",
     });
     setShowModal(true);
@@ -162,7 +187,6 @@ export default function IncomesPage() {
       const url = isEdit ? `/api/incomes/${editingId}` : "/api/incomes";
       const method = isEdit ? "PUT" : "POST";
 
-      // 💡 ແປງຈຳນວນເງິນທີ່ມີຈຸດ ເປັນ ໂຕເລກ pure number ກ່ອນສົ່ງລົງ API
       const payload = {
         ...formData,
         amount: parseFormattedNumber(formData.amount),
@@ -224,44 +248,6 @@ export default function IncomesPage() {
     }
   };
 
-  const handleExcelImport = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = async (evt) => {
-      const bstr = evt.target?.result;
-      const wb = XLSX.read(bstr, { type: "binary" });
-      const wsname = wb.SheetNames[0];
-      const ws = wb.Sheets[wsname];
-      const data = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[];
-
-      for (let i = 1; i < data.length; i++) {
-        const row = data[i];
-        if (row && row.length > 0 && row[3]) {
-          await fetch("/api/incomes", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              referenceNo: row[1]?.toString() || "",
-              date: row[2]?.toString() || new Date().toISOString().split("T")[0],
-              description: row[3]?.toString() || "",
-              disburser: row[4]?.toString() || "",
-              receiver: row[5]?.toString() || "",
-              amount: parseFloat(row[6]) || 0,
-              remark: row[7]?.toString() || "",
-            }),
-          });
-        }
-      }
-
-      fetchIncomes();
-      alert("Import ຂໍ້ມູນລົງ Database ສຳເລັດ!");
-      setShowImportModal(false);
-    };
-    reader.readAsBinaryString(file);
-  };
-
   const totalAmount = incomes.reduce((sum, item) => sum + Number(item.amount), 0);
 
   return (
@@ -301,14 +287,6 @@ export default function IncomesPage() {
                 )}
 
                 <button
-                  onClick={() => setShowImportModal(true)}
-                  className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-sm font-semibold rounded-xl border border-emerald-200 transition-all"
-                >
-                  <FileSpreadsheet className="w-4 h-4" />
-                  <span>Import Excel</span>
-                </button>
-
-                <button
                   onClick={handleOpenAdd}
                   className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-xl shadow-lg shadow-green-600/20 transition-all"
                 >
@@ -325,7 +303,7 @@ export default function IncomesPage() {
                 <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="ຄົ້ນຫາ Realtime (ເລກບິນ, ເນື້ອໃນ, ຜູ້ເບີກ, ຜູ້ຮັບ)..."
+                  placeholder="ຄົ້ນຫາ Realtime..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-600 focus:bg-white transition-all"
@@ -350,39 +328,6 @@ export default function IncomesPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100 text-xs">
-              <div className="flex items-center gap-2">
-                <Filter className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                <input
-                  type="text"
-                  placeholder="ກັ່ນຕອງ ເລກບິນ..."
-                  value={filterRef}
-                  onChange={(e) => setFilterRef(e.target.value)}
-                  className="w-full p-2 bg-white border rounded-lg focus:outline-none focus:ring-1 focus:ring-green-600"
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <Filter className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                <input
-                  type="text"
-                  placeholder="ກັ່ນຕອງ ຜູ້ເບີກເງິນ..."
-                  value={filterDisburser}
-                  onChange={(e) => setFilterDisburser(e.target.value)}
-                  className="w-full p-2 bg-white border rounded-lg focus:outline-none focus:ring-1 focus:ring-green-600"
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <Filter className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                <input
-                  type="text"
-                  placeholder="ກັ່ນຕອງ ຜູ້ຮັບເງິນ..."
-                  value={filterReceiver}
-                  onChange={(e) => setFilterReceiver(e.target.value)}
-                  className="w-full p-2 bg-white border rounded-lg focus:outline-none focus:ring-1 focus:ring-green-600"
-                />
-              </div>
-            </div>
-
             <div className="w-full overflow-x-auto rounded-xl border border-slate-100">
               <table className="w-full text-left text-sm text-slate-600 border-collapse">
                 <thead>
@@ -403,6 +348,7 @@ export default function IncomesPage() {
                     <th className="py-3.5 px-4 text-center w-12">ລຳດັບ</th>
                     <th className="py-3.5 px-4 whitespace-nowrap">ເລກບິນສັ່ງຈ່າຍ</th>
                     <th className="py-3.5 px-4 whitespace-nowrap">ວັນທີ ເດືອນ ປີ</th>
+                    <th className="py-3.5 px-4 whitespace-nowrap">ໝວດໝູ່</th>
                     <th className="py-3.5 px-4 min-w-[200px]">ເນື້ອໃນລາຍການ</th>
                     <th className="py-3.5 px-4 whitespace-nowrap">ຜູ້ເບີກເງິນ</th>
                     <th className="py-3.5 px-4 whitespace-nowrap">ຜູ້ຮັບເງິນ</th>
@@ -430,6 +376,11 @@ export default function IncomesPage() {
                         </td>
                         <td className="py-3.5 px-4 font-semibold text-green-700 whitespace-nowrap">{item.referenceNo || "-"}</td>
                         <td className="py-3.5 px-4 whitespace-nowrap">{item.date}</td>
+                        <td className="py-3.5 px-4 whitespace-nowrap">
+                          <span className="px-2.5 py-1 bg-green-50 text-green-700 border border-green-200 rounded-lg text-xs font-bold">
+                            {item.category || "ລາຍຮັບທົ່ວໄປ"}
+                          </span>
+                        </td>
                         <td className="py-3.5 px-4 font-semibold text-slate-900">{item.description}</td>
                         <td className="py-3.5 px-4 whitespace-nowrap">{item.disburser || "-"}</td>
                         <td className="py-3.5 px-4 whitespace-nowrap">{item.receiver || "-"}</td>
@@ -444,14 +395,12 @@ export default function IncomesPage() {
                               <button
                                 onClick={() => handleOpenEdit(item)}
                                 className="p-1.5 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-all"
-                                title="ແກ້ໄຂ"
                               >
                                 <Edit className="w-4 h-4" />
                               </button>
                               <button
                                 onClick={() => handleDeleteOne(item.id)}
                                 className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-all"
-                                title="ລົບ"
                               >
                                 <Trash2 className="w-4 h-4" />
                               </button>
@@ -462,39 +411,13 @@ export default function IncomesPage() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={userRole !== "DIRECTOR" ? 10 : 8} className="py-12 text-center text-slate-400">
+                      <td colSpan={userRole !== "DIRECTOR" ? 11 : 9} className="py-12 text-center text-slate-400">
                         ບໍ່ພົບຂໍ້ມູນລາຍຮັບໃນ Database
                       </td>
                     </tr>
                   )}
                 </tbody>
               </table>
-            </div>
-
-            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-2 border-t border-slate-100 text-xs text-slate-500 font-medium">
-              <span>
-                ສະແດງ {(currentPage - 1) * pageSize + 1} ຫາ {Math.min(currentPage * pageSize, filteredIncomes.length)} ຈາກທັງໝົດ {filteredIncomes.length} ລາຍການ
-              </span>
-
-              <div className="flex items-center gap-1">
-                <button
-                  disabled={currentPage === 1}
-                  onClick={() => setCurrentPage(currentPage - 1)}
-                  className="p-2 border rounded-xl hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                <span className="px-3 font-bold text-slate-800">
-                  ໜ້າ {currentPage} / {totalPages}
-                </span>
-                <button
-                  disabled={currentPage === totalPages}
-                  onClick={() => setCurrentPage(currentPage + 1)}
-                  className="p-2 border rounded-xl hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
             </div>
           </div>
         </main>
@@ -537,6 +460,28 @@ export default function IncomesPage() {
                 </div>
               </div>
 
+              {/* 💡 ຊ່ອງເລືອກໝວດໝູ່ແບບ Dynamic ຈາກ Database */}
+              <div>
+                <label className="font-bold text-slate-700">ໝວດໝູ່ລາຍຮັບ *</label>
+                <select
+                  value={formData.category}
+                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                  className="w-full p-3 bg-slate-50 border rounded-xl mt-1 text-sm focus:outline-none focus:ring-2 focus:ring-green-600 font-semibold"
+                >
+                  <option value="">-- ເລືອກໝວດໝູ່ --</option>
+                  {categories.map((cat) => (
+                    <optgroup key={cat.id} label={cat.name}>
+                      <option value={cat.name}>{cat.name} (ໝວດຫຼັກ)</option>
+                      {cat.children && cat.children.map((sub) => (
+                        <option key={sub.id} value={sub.name}>
+                          &nbsp;&nbsp;↳ {sub.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              </div>
+
               <div>
                 <label className="font-bold text-slate-700">ເນື້ອໃນລາຍການ *</label>
                 <input
@@ -572,7 +517,6 @@ export default function IncomesPage() {
                 </div>
               </div>
 
-              {/* 💡 ຊ່ອງປ້ອນຈຳນວນເງິນ ໃສ່ຈຸດອັດຕະໂນມັດ 1,000,000 */}
               <div>
                 <label className="font-bold text-slate-700">ຈຳນວນເງິນ (ກີບ) *</label>
                 <input
@@ -614,39 +558,6 @@ export default function IncomesPage() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* Modal Import Excel */}
-      {showImportModal && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-6 shadow-2xl border border-slate-100">
-            <div className="flex justify-between items-center border-b border-slate-100 pb-4">
-              <h3 className="font-bold text-lg text-slate-800">Import ຂໍ້ມູນລາຍຮັບຈາກ Excel</h3>
-              <button onClick={() => setShowImportModal(false)} className="text-slate-400 hover:text-slate-600">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 space-y-1">
-                <p className="font-bold">📌 ຮູບແບບ Excel ທີ່ຮອງຮັບ (8 ຖັນ):</p>
-                <p>1. ລໍາດັບ | 2. ເລກບິນສັ່ງຈ່າຍ | 3. ວັນທີ | 4. ເນື້ອໃນ | 5. ຜູ້ເບີກເງິນ | 6. ຜູ້ຮັບເງິນ | 7. ຈໍານວນເງິນ | 8. ໝາຍເຫດ</p>
-              </div>
-
-              <label className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-emerald-300 bg-emerald-50/50 hover:bg-emerald-50 rounded-2xl cursor-pointer transition-all">
-                <Upload className="w-10 h-10 text-emerald-600 mb-2" />
-                <span className="text-sm font-bold text-emerald-800">ເລືອກໄຟລ໌ Excel (.xlsx, .xls)</span>
-                <span className="text-xs text-slate-400 mt-1">ຄລິກເພື່ອອັບໂຫລດລົງ DB</span>
-                <input
-                  type="file"
-                  accept=".xlsx, .xls"
-                  onChange={handleExcelImport}
-                  className="hidden"
-                />
-              </label>
-            </div>
           </div>
         </div>
       )}

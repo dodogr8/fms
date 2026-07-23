@@ -1,101 +1,80 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-// GET: ດຶງຂໍ້ມູນງົບປະມານທັງໝົດ (ລຽງຕາມ startDate ແລະ createdAt ລ່າສຸດ)
+// GET: ດຶງຂໍ້ມູນງົບປະມານ
 export async function GET() {
   try {
     const budgets = await prisma.budget.findMany({
-      orderBy: [
-        { startDate: "desc" },
-        { createdAt: "desc" },
-      ],
+      orderBy: { id: "desc" },
     });
     return NextResponse.json(budgets);
   } catch (error) {
-    return NextResponse.json({ message: "ບໍ່ສາມາດດຶງຂໍ້ມູນງົບປະມານໄດ້" }, { status: 500 });
+    console.error("GET Budgets Error:", error);
+    return NextResponse.json({ message: "ບໍ່ສາມາດດຶງຂໍ້ມູນໄດ້" }, { status: 500 });
   }
 }
 
-// POST: ບັນທຶກງົບປະມານໂຄງການໃໝ່
+// POST: ເພີ່ມງົບປະມານໃໝ່ (ແບບປອດໄພ 100%)
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const { 
-      projectName, 
-      categoryName, 
-      totalAmount, 
-      deductType, 
-      deductValue, 
-      startDate, 
-      endDate, 
-      detail 
-    } = body;
-
-    if (!projectName || !totalAmount) {
-      return NextResponse.json({ message: "ກະລຸນາປ້ອນຊື່ໂຄງການ ແລະ ງົບປະມານລວມ" }, { status: 400 });
+    // 1. ອ່ານຂໍ້ມູນແບບປອດໄພທີ່ສຸດ (ແກ້ບັນຫາ Invalid JSON)
+    const bodyText = await request.text();
+    let body = {};
+    if (bodyText) {
+      body = JSON.parse(bodyText);
     }
 
-    const total = parseFloat(totalAmount);
-    const dValue = deductValue ? parseFloat(deductValue) : 0;
-    
+    const {
+      projectName,
+      categoryName,
+      totalAmount,
+      deductType,
+      deductValue,
+      startDate,
+      endDate,
+      detail,
+    } = body as any;
+
+    // 2. ກວດສອບຂໍ້ມູນ
+    if (!projectName) {
+      return NextResponse.json({ message: "ກະລຸນາປ້ອນຊື່ໂຄງການ" }, { status: 400 });
+    }
+
+    // 3. ແປງຄ່າເປັນຕົວເລກ (ປ້ອງກັນຄ່າວ່າງ ຫຼື NaN)
+    const parsedTotal = Number(totalAmount) || 0;
+    const parsedDeductVal = Number(deductValue) || 0;
+
+    // 4. ຄິດໄລ່ເງິນບໍລິຫານ
     let adminFee = 0;
     if (deductType === "percent") {
-      adminFee = (total * dValue) / 100;
+      adminFee = (parsedTotal * parsedDeductVal) / 100;
     } else {
-      adminFee = dValue;
+      adminFee = parsedDeductVal;
     }
+    const netAmount = parsedTotal - adminFee;
 
-    const netAmount = total - adminFee;
-
+    // 5. ບັນທຶກລົງ Database (ສະເພາະ Budget ເທົ່ານັ້ນ ເພື່ອປ້ອງກັນ Schema ຕຳກັນ)
     const newBudget = await prisma.budget.create({
       data: {
-        projectName,
-        categoryName: categoryName || "ໂຄງການພັດທະນາ",
-        totalAmount: total,
-        adminFee,
-        netAmount,
+        projectName: String(projectName),
+        categoryName: categoryName ? String(categoryName) : "ງົບປະມານໂຄງການ",
+        totalAmount: parsedTotal,
+        adminFee: adminFee,
+        netAmount: netAmount,
         usedAmount: 0,
-        startDate: startDate || new Date().toISOString().split("T")[0],
-        endDate: endDate || "",
-        detail: detail || "",
+        startDate: startDate ? String(startDate) : new Date().toISOString().split("T")[0],
+        endDate: endDate ? String(endDate) : null,
+        detail: detail ? String(detail) : null,
       },
     });
 
-    if (adminFee > 0) {
-      await prisma.income.create({
-        data: {
-          referenceNo: `ADM-${newBudget.id}`,
-          date: startDate || new Date().toISOString().split("T")[0],
-          description: `ເງິນບໍລິຫານ (%) ຕັດຈາກໂຄງການ: ${projectName}`,
-          disburser: "ໂຄງການງົບປະມານ",
-          receiver: "ຄັງເງິນບໍລິຫານ",
-          amount: adminFee,
-          remark: `ຕັດບໍລິຫານ ${deductType === 'percent' ? `${dValue}%` : `${dValue.toLocaleString()} ກີບ`}`,
-        },
-      });
-    }
-
     return NextResponse.json(newBudget, { status: 201 });
-  } catch (error) {
-    console.error("Budget Post Error:", error);
-    return NextResponse.json({ message: "ບັນທຶກຂໍ້ມູນງົບປະມານບໍ່ສຳເລັດ" }, { status: 500 });
-  }
-}
-
-// DELETE: ລົບຫຼາຍລາຍການ (Bulk Delete)
-export async function DELETE(request: Request) {
-  try {
-    const { ids } = await request.json();
-    if (!ids || !Array.isArray(ids) || ids.length === 0) {
-      return NextResponse.json({ message: "ກະລຸນາເລືອກລາຍການທີ່ຕ້ອງການລົບ" }, { status: 400 });
-    }
-
-    await prisma.budget.deleteMany({
-      where: { id: { in: ids.map((id) => Number(id)) } },
-    });
-
-    return NextResponse.json({ message: "ລົບຂໍ້ມູນສຳເລັດ" });
-  } catch (error) {
-    return NextResponse.json({ message: "ບໍ່ສາມາດລົບຂໍ້ມູນໄດ້" }, { status: 500 });
+  } catch (error: any) {
+    console.error("POST Budget Error:", error);
+    // ສົ່ງ Error ທີ່ແທ້ຈິງອອກມາໃຫ້ເຫັນ ຖ້າມີບັນຫາອີກ
+    return NextResponse.json(
+      { message: `Database Error: ${error?.message || "ບໍ່ສາມາດບັນທຶກໄດ້"}` },
+      { status: 500 }
+    );
   }
 }

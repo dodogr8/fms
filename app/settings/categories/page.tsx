@@ -24,14 +24,14 @@ interface SubCategory {
 interface CategoryItem {
   id: number;
   name: string;
-  type: "INCOME" | "EXPENSE" | "ASSET";
+  type: "INCOME" | "EXPENSE" | "BUDGET" | "ASSET";
   parentId: number | null;
   children: SubCategory[];
 }
 
 export default function CategoriesSettingsPage() {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [activeTab, setActiveTab] = useState<"EXPENSE" | "INCOME" | "ASSET">("EXPENSE");
+  const [activeTab, setActiveTab] = useState<"EXPENSE" | "INCOME" | "BUDGET" | "ASSET">("EXPENSE");
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [userRole, setUserRole] = useState<"ADMIN" | "DIRECTOR" | "FINANCE_STAFF" | "ASSET_STAFF">("ADMIN");
 
@@ -97,7 +97,6 @@ export default function CategoriesSettingsPage() {
 
     try {
       if (editingId) {
-        // Edit
         const res = await fetch(`/api/categories/${editingId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -105,7 +104,6 @@ export default function CategoriesSettingsPage() {
         });
         if (res.ok) alert("ອັບເດດໝວດໝູ່ສຳເລັດ!");
       } else {
-        // Add
         const res = await fetch("/api/categories", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -178,10 +176,10 @@ export default function CategoriesSettingsPage() {
           </div>
 
           {/* Type Tabs */}
-          <div className="flex border-b border-slate-200 gap-2">
+          <div className="flex border-b border-slate-200 gap-2 overflow-x-auto">
             <button
               onClick={() => setActiveTab("EXPENSE")}
-              className={`px-5 py-3 text-xs font-bold rounded-t-2xl border-b-2 transition-all flex items-center gap-2 ${
+              className={`px-5 py-3 text-xs font-bold rounded-t-2xl border-b-2 transition-all flex items-center gap-2 whitespace-nowrap ${
                 activeTab === "EXPENSE"
                   ? "border-red-600 text-red-600 bg-white"
                   : "border-transparent text-slate-500 hover:text-slate-700"
@@ -192,7 +190,7 @@ export default function CategoriesSettingsPage() {
             </button>
             <button
               onClick={() => setActiveTab("INCOME")}
-              className={`px-5 py-3 text-xs font-bold rounded-t-2xl border-b-2 transition-all flex items-center gap-2 ${
+              className={`px-5 py-3 text-xs font-bold rounded-t-2xl border-b-2 transition-all flex items-center gap-2 whitespace-nowrap ${
                 activeTab === "INCOME"
                   ? "border-green-600 text-green-600 bg-white"
                   : "border-transparent text-slate-500 hover:text-slate-700"
@@ -201,11 +199,23 @@ export default function CategoriesSettingsPage() {
               <Tags className="w-4 h-4" />
               ໝວດໝູ່ລາຍຮັບ
             </button>
+            {/* 💡 ເພີ່ມ Tab ໝວດໝູ່ງົບປະມານ */}
+            <button
+              onClick={() => setActiveTab("BUDGET")}
+              className={`px-5 py-3 text-xs font-bold rounded-t-2xl border-b-2 transition-all flex items-center gap-2 whitespace-nowrap ${
+                activeTab === "BUDGET"
+                  ? "border-blue-600 text-blue-600 bg-white"
+                  : "border-transparent text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              <Tags className="w-4 h-4" />
+              ໝວດໝູ່ງົບປະມານ
+            </button>
             <button
               onClick={() => setActiveTab("ASSET")}
-              className={`px-5 py-3 text-xs font-bold rounded-t-2xl border-b-2 transition-all flex items-center gap-2 ${
+              className={`px-5 py-3 text-xs font-bold rounded-t-2xl border-b-2 transition-all flex items-center gap-2 whitespace-nowrap ${
                 activeTab === "ASSET"
-                  ? "border-blue-600 text-blue-600 bg-white"
+                  ? "border-emerald-600 text-emerald-600 bg-white"
                   : "border-transparent text-slate-500 hover:text-slate-700"
               }`}
             >
@@ -220,7 +230,6 @@ export default function CategoriesSettingsPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {categories.map((cat) => (
                   <div key={cat.id} className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
-                    {/* Main Category Header */}
                     <div className="flex items-center justify-between border-b border-slate-200/80 pb-2.5">
                       <div className="flex items-center gap-2">
                         <span className="p-1.5 bg-indigo-100 text-indigo-700 rounded-lg text-xs font-bold">
@@ -256,7 +265,6 @@ export default function CategoriesSettingsPage() {
                       )}
                     </div>
 
-                    {/* Sub Categories List */}
                     <div className="pl-3 space-y-1.5">
                       {cat.children && cat.children.length > 0 ? (
                         cat.children.map((sub) => (
@@ -299,7 +307,7 @@ export default function CategoriesSettingsPage() {
         </main>
       </div>
 
-      {/* Modal ເພີ່ມ/ແກ້ໄຂ ໝວດໝູ່ */}
+      {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl border border-slate-100">

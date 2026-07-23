@@ -36,9 +36,17 @@ interface AssetItem {
   attachment?: string;
 }
 
+interface CategoryItem {
+  id: number;
+  name: string;
+  type: string;
+  children: { id: number; name: string }[];
+}
+
 export default function AssetsPage() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [assets, setAssets] = useState<AssetItem[]>([]);
+  const [categories, setCategories] = useState<CategoryItem[]>([]); // 💡 State ເກັບໝວດໝູ່ຊັບສິນຈາກ Database
   const [userRole, setUserRole] = useState<"ADMIN" | "DIRECTOR" | "FINANCE_STAFF" | "ASSET_STAFF">("ADMIN");
 
   // Search & Filter
@@ -62,7 +70,7 @@ export default function AssetsPage() {
   const [formData, setFormData] = useState({
     assetCode: "",
     name: "",
-    categoryName: "ອຸປະກອນ IT",
+    categoryName: "",
     purchaseDate: new Date().toISOString().split("T")[0],
     price: "",
     assignedTo: "",
@@ -72,6 +80,7 @@ export default function AssetsPage() {
 
   useEffect(() => {
     fetchAssets();
+    fetchCategories(); // 💡 ດຶງໝວດໝູ່ຊັບສິນຈາກ Database
 
     const savedUser = localStorage.getItem("user");
     if (savedUser) {
@@ -96,12 +105,26 @@ export default function AssetsPage() {
     }
   };
 
+  // 💡 ດຶງໝວດໝູ່ຊັບສິນຈາກ /api/categories?type=ASSET
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch("/api/categories?type=ASSET");
+      if (res.ok) {
+        const data = await res.json();
+        setCategories(data);
+      }
+    } catch (err) {
+      console.error("Fetch Categories Error:", err);
+    }
+  };
+
   // Realtime Filter Logic
   const filteredAssets = useMemo(() => {
     return assets.filter((item) => {
       const matchSearch =
         (item.name && item.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (item.assetCode && item.assetCode.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (item.categoryName && item.categoryName.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (item.assignedTo && item.assignedTo.toLowerCase().includes(searchTerm.toLowerCase()));
 
       const matchCode = filterCode ? item.assetCode?.toLowerCase().includes(filterCode.toLowerCase()) : true;
@@ -152,7 +175,7 @@ export default function AssetsPage() {
     setFormData({
       assetCode: "",
       name: "",
-      categoryName: "ອຸປະກອນ IT",
+      categoryName: categories.length > 0 ? categories[0].name : "",
       purchaseDate: new Date().toISOString().split("T")[0],
       price: "",
       assignedTo: "",
@@ -167,9 +190,9 @@ export default function AssetsPage() {
     setFormData({
       assetCode: item.assetCode || "",
       name: item.name || "",
-      categoryName: item.categoryName || "ອຸປະກອນ IT",
+      categoryName: item.categoryName || "",
       purchaseDate: item.purchaseDate || new Date().toISOString().split("T")[0],
-      price: formatNumberInput(item.price.toString()), // 💡 ໃສ່ຈຸດອັດຕະໂນມັດຕອນເປີດ Modal ແກ້ໄຂ
+      price: formatNumberInput(item.price.toString()),
       assignedTo: item.assignedTo || "",
       status: item.status || "available",
       attachment: item.attachment || "",
@@ -189,7 +212,6 @@ export default function AssetsPage() {
       const url = isEdit ? `/api/assets/${editingId}` : "/api/assets";
       const method = isEdit ? "PUT" : "POST";
 
-      // 💡 ແປງມູນຄ່າທີ່ມີຈຸດ ເປັນ pure number ກ່ອນສົ່ງໄປ API
       const payload = {
         ...formData,
         price: parseFormattedNumber(formData.price),
@@ -428,9 +450,9 @@ export default function AssetsPage() {
                         </td>
                         <td className="py-3.5 px-4 font-semibold text-green-700 whitespace-nowrap">{item.assetCode}</td>
                         <td className="py-3.5 px-4 font-bold text-slate-900">{item.name}</td>
-                        <td className="py-3.5 px-4 whitespace-nowrap">{item.categoryName}</td>
+                        <td className="py-3.5 px-4 whitespace-nowrap">{item.categoryName || "-"}</td>
                         <td className="py-3.5 px-4 font-bold text-slate-800 whitespace-nowrap">{Number(item.price).toLocaleString()}</td>
-                        <td className="py-3.5 px-4 whitespace-nowrap">{item.assignedTo}</td>
+                        <td className="py-3.5 px-4 whitespace-nowrap">{item.assignedTo || "-"}</td>
                         <td className="py-3.5 px-4 whitespace-nowrap">{getStatusBadge(item.status)}</td>
                         <td className="py-3.5 px-4 text-center whitespace-nowrap">
                           {item.attachment ? (
@@ -545,17 +567,26 @@ export default function AssetsPage() {
                     className="w-full p-3 bg-slate-50 border rounded-xl mt-1 text-sm focus:outline-none focus:ring-2 focus:ring-green-600"
                   />
                 </div>
+                
+                {/* 💡 ຊ່ອງເລືອກໝວດໝູ່ຊັບສິນແບບ Dynamic ຈາກ Database */}
                 <div>
-                  <label className="font-bold text-slate-700">ໝວດໝູ່</label>
+                  <label className="font-bold text-slate-700">ໝວດໝູ່ *</label>
                   <select
                     value={formData.categoryName}
                     onChange={(e) => setFormData({ ...formData, categoryName: e.target.value })}
-                    className="w-full p-3 bg-slate-50 border rounded-xl mt-1 text-sm focus:outline-none focus:ring-2 focus:ring-green-600"
+                    className="w-full p-3 bg-slate-50 border rounded-xl mt-1 text-sm focus:outline-none focus:ring-2 focus:ring-green-600 font-semibold"
                   >
-                    <option value="ອຸປະກອນ IT">ອຸປະກອນ IT</option>
-                    <option value="ເຄື່ອງເຟີນີເຈີ">ເຄື່ອງເຟີນີເຈີ</option>
-                    <option value="ພາຫະນະ">ພາຫະນະ</option>
-                    <option value="ເຄື່ອງໃຊ້ຫ້ອງການ">ເຄື່ອງໃຊ້ຫ້ອງການ</option>
+                    <option value="">-- ເລືອກໝວດໝູ່ --</option>
+                    {categories.map((cat) => (
+                      <optgroup key={cat.id} label={cat.name}>
+                        <option value={cat.name}>{cat.name} (ໝວດຫຼັກ)</option>
+                        {cat.children && cat.children.map((sub) => (
+                          <option key={sub.id} value={sub.name}>
+                            &nbsp;&nbsp;↳ {sub.name}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -573,7 +604,6 @@ export default function AssetsPage() {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                {/* 💡 ຊ່ອງປ້ອນມູນຄ່າຊັບສິນ ໃສ່ຈຸດອັດຕະໂນມັດຕອນພິມ */}
                 <div>
                   <label className="font-bold text-slate-700">ມູນຄ່າຊື້ (ກີບ) *</label>
                   <input
@@ -637,7 +667,7 @@ export default function AssetsPage() {
                   className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-emerald-600 file:text-white hover:file:bg-emerald-700 cursor-pointer"
                 />
                 {formData.attachment && (
-                  <p className="text-[11px] text-emerald-700 font-bold">✅ แนບໄຟລ໌ສຳເລັດແລ້ວ</p>
+                  <p className="text-[11px] text-emerald-700 font-bold">✅ ແນບໄຟລ໌ສຳເລັດແລ້ວ</p>
                 )}
               </div>
 

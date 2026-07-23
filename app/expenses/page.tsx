@@ -41,10 +41,18 @@ interface BudgetItem {
   usedAmount: number;
 }
 
+interface CategoryItem {
+  id: number;
+  name: string;
+  type: string;
+  children: { id: number; name: string }[];
+}
+
 export default function ExpensesPage() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [expenses, setExpenses] = useState<ExpenseTransaction[]>([]);
   const [budgetList, setBudgetList] = useState<BudgetItem[]>([]);
+  const [categories, setCategories] = useState<CategoryItem[]>([]); // 💡 State ເກັບໝວດໝູ່ຈາກ Database ຈິງ
   const [userRole, setUserRole] = useState<"ADMIN" | "DIRECTOR" | "FINANCE_STAFF" | "ASSET_STAFF">("ADMIN");
 
   // Search & Filter States
@@ -68,7 +76,7 @@ export default function ExpensesPage() {
   const [formData, setFormData] = useState({
     referenceNo: "",
     date: new Date().toISOString().split("T")[0],
-    category: "ຄ່າບໍລິຫານທົ່ວໄປ",
+    category: "",
     description: "",
     disburser: "",
     receiver: "",
@@ -81,6 +89,7 @@ export default function ExpensesPage() {
   useEffect(() => {
     fetchExpenses();
     fetchBudgets();
+    fetchCategories(); // 💡 ດຶງໝວດໝູ່ລາຍຈ່າຍຈາກ Database
 
     const savedUser = localStorage.getItem("user");
     if (savedUser) {
@@ -117,6 +126,19 @@ export default function ExpensesPage() {
     }
   };
 
+  // 💡 ດຶງໝວດໝູ່ລາຍຈ່າຍຈາກ /api/categories
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch("/api/categories?type=EXPENSE");
+      if (res.ok) {
+        const data = await res.json();
+        setCategories(data);
+      }
+    } catch (err) {
+      console.error("Fetch Categories Error:", err);
+    }
+  };
+
   // Realtime Filter Logic
   const filteredExpenses = useMemo(() => {
     return expenses.filter((item) => {
@@ -124,6 +146,7 @@ export default function ExpensesPage() {
         (item.description && item.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (item.referenceNo && item.referenceNo.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (item.receiver && item.receiver.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (item.category && item.category.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (item.budgetName && item.budgetName.toLowerCase().includes(searchTerm.toLowerCase()));
 
       const matchRef = filterRef ? item.referenceNo?.toLowerCase().includes(filterRef.toLowerCase()) : true;
@@ -178,7 +201,7 @@ export default function ExpensesPage() {
     setFormData({
       referenceNo: "",
       date: new Date().toISOString().split("T")[0],
-      category: "ຄ່າບໍລິຫານທົ່ວໄປ",
+      category: categories.length > 0 ? categories[0].name : "",
       description: "",
       disburser: "",
       receiver: "",
@@ -195,11 +218,11 @@ export default function ExpensesPage() {
     setFormData({
       referenceNo: item.referenceNo || "",
       date: item.date || new Date().toISOString().split("T")[0],
-      category: item.category || "ຄ່າບໍລິຫານທົ່ວໄປ",
+      category: item.category || "",
       description: item.description || "",
       disburser: item.disburser || "",
       receiver: item.receiver || "",
-      amount: formatNumberInput(item.amount.toString()), // 💡 ໃສ່ຈຸດອັດຕະໂນມັດຕອນເປີດແກ້ໄຂ
+      amount: formatNumberInput(item.amount.toString()),
       budgetId: item.budgetId ? item.budgetId.toString() : "",
       budgetName: item.budgetName || "",
       remark: item.remark || "",
@@ -219,7 +242,6 @@ export default function ExpensesPage() {
       const url = isEdit ? `/api/expenses/${editingId}` : "/api/expenses";
       const method = isEdit ? "PUT" : "POST";
 
-      // 💡 ແປງຈຳນວນເງິນທີ່ມີຈຸດ ເປັນ pure number ກ່ອນສົ່ງໄປ API
       const payload = {
         ...formData,
         amount: parseFormattedNumber(formData.amount),
@@ -303,7 +325,7 @@ export default function ExpensesPage() {
             body: JSON.stringify({
               referenceNo: row[1]?.toString() || "",
               date: row[2]?.toString() || new Date().toISOString().split("T")[0],
-              category: "ຄ່າບໍລິຫານທົ່ວໄປ",
+              category: categories.length > 0 ? categories[0].name : "ຄ່າບໍລິຫານທົ່ວໄປ",
               description: row[3]?.toString() || "",
               disburser: row[4]?.toString() || "",
               receiver: row[5]?.toString() || "",
@@ -616,6 +638,7 @@ export default function ExpensesPage() {
                 </div>
               </div>
 
+              {/* 💡 ຊ່ອງເລືອກໝວດໝູ່ລາຍຈ່າຍແບບ Dynamic ຈາກ Database */}
               <div>
                 <label className="font-bold text-slate-700">ໝວດໝູ່ລາຍຈ່າຍ *</label>
                 <select
@@ -623,12 +646,17 @@ export default function ExpensesPage() {
                   onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                   className="w-full p-3 bg-slate-50 border rounded-xl mt-1 text-sm focus:outline-none focus:ring-2 focus:ring-red-600 font-semibold"
                 >
-                  <option value="ຄ່າບໍລິຫານທົ່ວໄປ">ຄ່າບໍລິຫານທົ່ວໄປ (ໄຟ, ນ້ຳ, ເຄື່ອງຂຽນ)</option>
-                  <option value="ຄ່າເງິນເດືອນ ແລະ ເບ້ຍລ້ຽງ">ຄ່າເງິນເດືອນ ແລະ ເບ້ຍລ້ຽງ</option>
-                  <option value="ຄ່າວັດຖຸອຸປະກອນ">ຄ່າວັດຖຸອຸປະກອນ / ສ້ອມແປງ</option>
-                  <option value="ຄ່າຈັດຊື້ຊັບສິນ">ຄ່າຈັດຊື້ຊັບສິນໃໝ່</option>
-                  <option value="ຄ່າເຝິກອົບຮົມ ແລະ ສາມະນາ">ຄ່າເຝິກອົບຮົມ ແລະ ສາມະນາ</option>
-                  <option value="ຄ່າໃຊ້ຈ່າຍໂຄງການ">ຄ່າໃຊ້ຈ່າຍໂຄງການ</option>
+                  <option value="">-- ເລືອກໝວດໝູ່ --</option>
+                  {categories.map((cat) => (
+                    <optgroup key={cat.id} label={cat.name}>
+                      <option value={cat.name}>{cat.name} (ໝວດຫຼັກ)</option>
+                      {cat.children && cat.children.map((sub) => (
+                        <option key={sub.id} value={sub.name}>
+                          &nbsp;&nbsp;↳ {sub.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
                 </select>
               </div>
 
@@ -689,7 +717,6 @@ export default function ExpensesPage() {
                 </div>
               </div>
 
-              {/* 💡 ຊ່ອງປ້ອນຈຳນວນເງິນ ໃສ່ຈຸດອັດຕະໂນມັດຕອນພິມ */}
               <div>
                 <label className="font-bold text-slate-700">ຈຳນວນເງິນ (ກີບ) *</label>
                 <input
