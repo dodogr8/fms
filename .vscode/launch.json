@@ -1,0 +1,10 @@
+{
+    "configurations": [
+        {
+            "type": "msedge",
+            "name": "http://localhost:3000/budgets",
+            "request": "launch",
+            "url": "http://localhost:3000/budgets"
+        }
+    ]
+}
