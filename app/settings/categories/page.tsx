@@ -145,7 +145,7 @@ export default function CategoriesSettingsPage() {
 
       <div className="flex-1 flex flex-col min-w-0 transition-all duration-300">
         <Navbar 
-          title="ຈັດການໝວດໝູ່ (Categories Management)" 
+          title="ການຈັດການໝວດໝູ່" 
           userName="ຜູ້ໃຊ້ງານລະບົບ" 
           userRole={userRole} 
           onToggleSidebar={() => setIsCollapsed(!isCollapsed)}
@@ -159,8 +159,8 @@ export default function CategoriesSettingsPage() {
                 <FolderTree className="w-8 h-8" />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-slate-900">ຕັ້ງຄ່າໝວດໝູ່ & ໝວດໝູ່ຍ່ອຍ</h2>
-                <p className="text-xs text-slate-500 mt-0.5">ເພີ່ມ ຫຼື ແກ້ໄຂໝວດໝູ່ ເພື່ອນຳໃຊ້ໃນຟອມບັນທຶກຕ່າງໆ</p>
+                <h2 className="text-xl font-bold text-slate-900">Categories Management</h2>
+                <p className="text-xs text-slate-500 mt-0.5">ເພີ່ມ ຫຼື ແກ້ໄຂ ໝວດໝູ່ໃນລະບົບ</p>
               </div>
             </div>
 
@@ -186,7 +186,7 @@ export default function CategoriesSettingsPage() {
               }`}
             >
               <Tags className="w-4 h-4" />
-              ໝວດໝູ່ລາຍຈ່າຍ
+              ໝວດລາຍຈ່າຍ
             </button>
             <button
               onClick={() => setActiveTab("INCOME")}
@@ -197,7 +197,7 @@ export default function CategoriesSettingsPage() {
               }`}
             >
               <Tags className="w-4 h-4" />
-              ໝວດໝູ່ລາຍຮັບ
+              ໝວດລາຍຮັບ
             </button>
             {/* 💡 ເພີ່ມ Tab ໝວດໝູ່ງົບປະມານ */}
             <button
@@ -209,7 +209,7 @@ export default function CategoriesSettingsPage() {
               }`}
             >
               <Tags className="w-4 h-4" />
-              ໝວດໝູ່ງົບປະມານ
+              ໝວດງົບປະມານ
             </button>
             <button
               onClick={() => setActiveTab("ASSET")}
@@ -220,7 +220,7 @@ export default function CategoriesSettingsPage() {
               }`}
             >
               <Tags className="w-4 h-4" />
-              ໝວດໝູ່ຊັບສິນ
+              ໝວດຊັບສິນ
             </button>
           </div>
 

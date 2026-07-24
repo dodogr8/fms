@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import Sidebar from "@/components/Sidebar";
 import Navbar from "@/components/Navbar";
+import { showSuccess, showError, showConfirm } from "@/lib/swal";
 import { 
   Plus, 
   FileSpreadsheet, 
@@ -97,7 +98,7 @@ export default function ExpensesPage() {
         const parsed = JSON.parse(savedUser);
         if (parsed.role) setUserRole(parsed.role);
       } catch (e) {
-        console.error("Error parsing user role", e);
+        showError("Error parsing user role: " + (e instanceof Error ? e.message : String(e)));
       }
     }
   }, []);
@@ -110,7 +111,7 @@ export default function ExpensesPage() {
         setExpenses(data);
       }
     } catch (err) {
-      console.error("Fetch Expenses Error:", err);
+      showError("Fetch Expenses Error: " + (err instanceof Error ? err.message : String(err)));
     }
   };
 

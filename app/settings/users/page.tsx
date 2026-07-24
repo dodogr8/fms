@@ -155,7 +155,7 @@ export default function SettingsPage() {
 
       <div className="flex-1 flex flex-col min-w-0 transition-all duration-300">
         <Navbar 
-          title="ການຕັ້ງຄ່າລະບົບ & ຈັດການຜູ້ໃຊ້ (Settings)" 
+          title="ການຈັດການຜູ້ໃຊ້" 
           userName="ຜູ້ບໍລິຫານລະບົບ" 
           userRole="ADMIN" 
           onToggleSidebar={() => setIsCollapsed(!isCollapsed)}
@@ -169,7 +169,7 @@ export default function SettingsPage() {
                 <Users className="w-8 h-8" />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-slate-900">ຈັດການຜູ້ໃຊ້ງານລະບົບ</h2>
+                <h2 className="text-xl font-bold text-slate-900">USER MANAGEMENT</h2>
                 <p className="text-xs text-slate-500 mt-0.5">ເພີ່ມ, ແກ້ໄຂ, ລົບ ແລະ ກຳນົດສິດທິການເຂົ້າເຖິງຂໍ້ມູນຂອງພະນັກງານ</p>
               </div>
             </div>
@@ -188,10 +188,10 @@ export default function SettingsPage() {
             <div className="flex justify-between items-center">
               <h3 className="font-bold text-slate-800 text-base flex items-center gap-2">
                 <ShieldCheck className="w-5 h-5 text-green-600" />
-                ລາຍຊື່ຜູ້ໃຊ້ງານທັງໝົດໃນ Database
+                ລາຍຊື່ຜູ້ໃຊ້ງານທັງໝົດ
               </h3>
-              <span className="text-xs font-semibold text-slate-500">
-                ລວມ: {users.length} ບັນຊີ
+              <span className="text-bold font-semibold text-slate-500">
+                ລວມ: {users.length} ຄົນ
               </span>
             </div>
 
@@ -199,12 +199,12 @@ export default function SettingsPage() {
               <table className="w-full text-left text-sm text-slate-600 border-collapse">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold text-xs uppercase tracking-wider">
-                    <th className="py-3.5 px-4 text-center w-16">ລຳດັບ</th>
-                    <th className="py-3.5 px-4 whitespace-nowrap">ຊື່ຜູ້ໃຊ້ (Username)</th>
-                    <th className="py-3.5 px-4 whitespace-nowrap">ຊື່ ແລະ ນາມສະກຸນ</th>
-                    <th className="py-3.5 px-4 whitespace-nowrap">ສິດທິການນຳໃຊ້ (Role)</th>
-                    <th className="py-3.5 px-4 whitespace-nowrap">ວັນທີສ້າງ</th>
-                    <th className="py-3.5 px-4 text-center whitespace-nowrap">ຈັດການ</th>
+                    <th className="py-3.5 px-4 text-center w-16">No.</th>
+                    <th className="py-3.5 px-4 whitespace-nowrap">Username</th>
+                    <th className="py-3.5 px-4 whitespace-nowrap">NAME AND SURNAME</th>
+                    <th className="py-3.5 px-4 whitespace-nowrap">Role</th>
+                    <th className="py-3.5 px-4 whitespace-nowrap">Date Created</th>
+                    <th className="py-3.5 px-4 text-center whitespace-nowrap">Edit</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium">

@@ -9,12 +9,16 @@ import {
   TrendingDown, 
   PieChart, 
   Package, 
-  FileText, 
   Settings, 
   LogOut,
   Building2,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Calendar,
+  Briefcase,
+  Box,
+  FolderTree,
+  Users
 } from "lucide-react";
 
 interface SidebarProps {
@@ -31,7 +35,7 @@ export default function Sidebar({
   const pathname = usePathname();
   const [currentRole, setCurrentRole] = useState<string>(initialRole || "FINANCE_STAFF");
 
-  // 💡 ດຶງ Role ຈາກ LocalStorage ອັດຕະໂນມັດ ຕອນເປີດໜ້າຈໍ
+  // 💡 ດຶງ Role ຈາກ LocalStorage ອັດຕະໂນມັດ
   useEffect(() => {
     const savedUser = localStorage.getItem("user");
     if (savedUser) {
@@ -41,88 +45,113 @@ export default function Sidebar({
           setCurrentRole(parsed.role);
         }
       } catch (e) {
-        console.error("Error reading role from localStorage", e);
+        console.error("Error parsing user role from localStorage", e);
       }
     }
   }, [initialRole]);
 
-  // ກຳນົດສິດທິການເຫັນເມນູ
-  const menuItems = [
+  // 💡 ລາຍການເມນູທັງໝົດ (ເພີ່ມ ເມນູ ການຕັ້ງຄ່າ ກັບຄືນມາແລ້ວ)
+  const navigation = [
     {
       title: "ໜ້າຫຼັກ",
       href: "/dashboard",
       icon: LayoutDashboard,
       roles: ["ADMIN", "DIRECTOR", "FINANCE_STAFF", "ASSET_STAFF"],
     },
+    
     {
-      title: "ຈັດການລາຍຮັບ",
+      title: "ລາຍຮັບ",
       href: "/incomes",
       icon: TrendingUp,
       roles: ["ADMIN", "DIRECTOR", "FINANCE_STAFF"],
     },
     {
-      title: "ຈັດການລາຍຈ່າຍ",
+      title: "ລາຍຈ່າຍ",
       href: "/expenses",
       icon: TrendingDown,
       roles: ["ADMIN", "DIRECTOR", "FINANCE_STAFF"],
     },
     {
-      title: "ຄຸ້ມຄອງງົບປະມານ",
+      title: "ງົບປະມານໂຄງການ",
       href: "/budgets",
-      icon: PieChart,
+      icon: Briefcase,
+      roles: ["ADMIN", "DIRECTOR", "FINANCE_STAFF"],
+    },
+
+    {
+      title: "ສະຫຼຸບຍອດປະຈຳປີ",
+      href: "/annual-summary",
+      icon: Calendar,
       roles: ["ADMIN", "DIRECTOR", "FINANCE_STAFF"],
     },
     {
       title: "ຄຸ້ມຄອງຊັບສິນ",
       href: "/assets",
-      icon: Package,
+      icon: Box,
       roles: ["ADMIN", "DIRECTOR", "ASSET_STAFF"],
     },
+    
     {
-      title: "ອອກບົດລາຍງານ",
+      title: "ລາຍງານ",
       href: "/reports",
-      icon: FileText,
-      roles: ["ADMIN", "DIRECTOR", "FINANCE_STAFF", "ASSET_STAFF"],
+      icon: PieChart,
+      roles: ["ADMIN", "DIRECTOR", "FINANCE_STAFF"],
     },
+    
     {
-      title: "ການຕັ້ງຄ່າລະບົບ",
+      title: "ການຕັ້ງຄ່າລະບົບ", // 💡 ເພີ່ມເມນູ ການຕັ້ງຄ່າ ກັບຄືນມາ
       href: "/settings",
       icon: Settings,
-      roles: ["ADMIN"], // 🔒 ສະເພາະ ADMIN ເທົ່ານັ້ນ! (DIRECTOR, FINANCE, ASSET ຈະບໍ່ເຫັນ)
+      roles: ["ADMIN"],
     },
   ];
 
-  // ກັ່ນຕອງເມນູຕາມ Role ຕົວຈິງ
-  const filteredMenu = menuItems.filter((item) => item.roles.includes(currentRole));
+  // 💡 Filter ເມນູຕາມ Role ຂອງຜູ້ໃຊ້
+  const filteredNavigation = navigation.filter(
+    (item) => !item.roles || item.roles.includes(currentRole)
+  );
 
   return (
-    <aside 
-      style={{ width: isCollapsed ? '80px' : '256px' }}
-      className="bg-white border-r border-slate-200 shrink-0 min-h-screen flex flex-col justify-between p-3 sticky top-0 h-screen transition-all duration-300 relative z-20"
+    <aside
+      className={`bg-white border-r border-slate-200/80 min-h-screen flex flex-col justify-between p-4 transition-all duration-300 relative ${
+        isCollapsed ? "w-20" : "w-64"
+      }`}
     >
-      <button
-        onClick={() => setIsCollapsed(!isCollapsed)}
-        className="absolute -right-3 top-7 bg-white border border-slate-200 text-slate-600 hover:text-green-600 p-1.5 rounded-full shadow-md z-30 hover:scale-110 transition-all"
-        title={isCollapsed ? "ຂະຫຍາຍເມນູ" : "ເຊື່ອງເມນູ"}
-      >
-        {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-      </button>
-
-      <div>
-        <div className={`flex items-center gap-3 px-2 py-3 mb-6 border-b border-slate-100 ${isCollapsed ? "justify-center" : ""}`}>
-          <div className="p-2.5 bg-green-600 text-white rounded-xl shadow-md shadow-green-600/20 shrink-0">
-            <Building2 className="w-6 h-6" />
-          </div>
+      <div className="space-y-6">
+        {/* Header Logo */}
+        <div className="flex items-center justify-between px-2">
           {!isCollapsed && (
-            <div className="overflow-hidden transition-all whitespace-nowrap">
-              <h1 className="font-bold text-base text-slate-900 tracking-wide">GFMS ONLINE</h1>
-              <p className="text-[10px] text-green-700 font-semibold uppercase tracking-wider">ລະບົບການເງິນຫ້ອງການ</p>
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-green-600 text-white rounded-xl shadow-md shadow-green-600/20">
+                <Building2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h1 className="font-bold text-slate-800 text-sm leading-tight">
+                  ລະບົບການເງິນ
+                </h1>
+                <p className="text-[10px] text-slate-400 font-medium">
+                  Finance System
+                </p>
+              </div>
             </div>
           )}
+
+          <button
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-all mx-auto"
+            title={isCollapsed ? "ຂະຫຍາຍເມນູ" : "ຍໍ້ເມນູ"}
+          >
+            {isCollapsed ? (
+              <ChevronRight className="w-5 h-5" />
+            ) : (
+              <ChevronLeft className="w-5 h-5" />
+            )}
+          </button>
         </div>
 
-        <nav className="space-y-1.5">
-          {filteredMenu.map((item) => {
+        {/* Navigation List */}
+        <nav className="space-y-1">
+          {filteredNavigation.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href;
             return (
@@ -154,8 +183,8 @@ export default function Sidebar({
             isCollapsed ? "justify-center" : ""
           }`}
         >
-          <LogOut className="w-5 h-5 text-red-500 shrink-0" />
-          {!isCollapsed && <span className="whitespace-nowrap">ອອກຈາກລະບົບ</span>}
+          <LogOut className="w-5 h-5 shrink-0" />
+          {!isCollapsed && <span>ອອກຈາກລະບົບ</span>}
         </Link>
       </div>
     </aside>

@@ -6,20 +6,23 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    // 💡 ຮອງຮັບ Next.js ທັງເວີຊັນ 14 ແລະ 15
-    const resolvedParams = await params; 
+    const resolvedParams = await params;
     const budgetId = parseInt(resolvedParams.id);
+    const body = await req.json();
 
-    let body: any = {};
-    try {
-      body = await req.json();
-    } catch (e) {
-      return NextResponse.json({ message: "ຮູບແບບຂໍ້ມູນບໍ່ຖືກຕ້ອງ" }, { status: 400 });
-    }
-
-    const { projectName, categoryName, totalAmount, startDate, endDate, detail } = body;
+    const {
+      projectName,
+      categoryName,
+      totalAmount,
+      deductType,
+      deductValue,
+      startDate,
+      endDate,
+      detail,
+    } = body;
 
     const parsedTotal = Number(totalAmount) || 0;
+    const parsedDeductVal = Number(deductValue) || 0;
 
     const existingBudget = await prisma.budget.findUnique({
       where: { id: budgetId },
@@ -29,15 +32,30 @@ export async function PUT(
       return NextResponse.json({ message: "ບໍ່ພົບຂໍ້ມູນໂຄງການ" }, { status: 404 });
     }
 
-    const netAmount = parsedTotal - Number(existingBudget.deductAmount || 0);
+    // ຄິດໄລ່ຄ່າຫັກບໍລິຫານໃໝ່
+    let calculatedDeductAmount = 0;
+    const currentDeductType = deductType || existingBudget.deductType || "percent";
+
+    if (currentDeductType === "percent") {
+      calculatedDeductAmount = (parsedTotal * parsedDeductVal) / 100;
+    } else {
+      calculatedDeductAmount = parsedDeductVal;
+    }
+
+    const calculatedNetAmount = parsedTotal - calculatedDeductAmount;
+    const hasDeduct = calculatedDeductAmount > 0;
 
     const updatedBudget = await prisma.budget.update({
       where: { id: budgetId },
       data: {
         projectName: String(projectName),
-        categoryName: categoryName ? String(categoryName) : "ງົບປະມານໂຄງການ",
+        categoryName: categoryName && String(categoryName).trim() !== "" ? String(categoryName) : existingBudget.categoryName,
         totalAmount: parsedTotal,
-        netAmount: netAmount,
+        isDeduct: hasDeduct,
+        deductType: currentDeductType,
+        deductValue: parsedDeductVal,
+        deductAmount: calculatedDeductAmount,
+        netAmount: calculatedNetAmount,
         startDate: startDate ? String(startDate) : existingBudget.startDate,
         endDate: endDate ? String(endDate) : existingBudget.endDate,
         detail: detail ? String(detail) : existingBudget.detail,

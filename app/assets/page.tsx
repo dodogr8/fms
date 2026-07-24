@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import Sidebar from "@/components/Sidebar";
 import Navbar from "@/components/Navbar";
 import { formatNumberInput, parseFormattedNumber } from "@/lib/formatters";
+import { showSuccess, showError, showConfirm } from "@/lib/swal";
 import { 
   Plus, 
   Search, 
@@ -101,7 +102,7 @@ export default function AssetsPage() {
         setAssets(data);
       }
     } catch (err) {
-      console.error("Fetch Assets Error:", err);
+      showError("Fetch Assets Error: " + (err instanceof Error ? err.message : String(err)));
     }
   };
 

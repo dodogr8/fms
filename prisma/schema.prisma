@@ -21,16 +21,20 @@ model User {
 
 // 💵 ຕາຕະລາງລາຍຮັບ (Income)
 model Income {
-  id          Int      @id @default(autoincrement())
-  referenceNo String?  // ເລກບິນສັ່ງຈ່າຍ
-  date        String   // ວັນທີ
-  description String   // ເນື້ອໃນລາຍການ
-  disburser   String?  // ຜູ້ເບີກເງິນ
-  receiver    String?  // ຜູ້ຮັບເງິນ
-  amount      Float    // ຈຳນວນເງິນ
-  remark      String?  // ໝາຍເຫດ
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            Int      @id @default(autoincrement())
+  referenceNo   String?  // ເລກບິນສັ່ງຈ່າຍ
+  date          String   // ວັນທີ
+  incomeType    String   @default("REGULAR") // REGULAR = ບໍລິຫານ/ປົກກະຕິ(ໃຊ້ໄດ້ເລີຍ), FEE_SERVICE = ຄ່າທຳນຽມ&ບໍລິການ
+  categoryName  String?  @default("ລາຍຮັບທົ່ວໄປ")
+  description   String   // ເນື້ອໃນລາຍການ
+  disburser     String?  // ຜູ້ເບີກ/ຜູ້ມອບ
+  receiver      String?  // ຜູ້ຮັບ
+  amount        Float    // ຍອດລວມບິນ
+  feeAmount     Float    @default(0) // ຍອດຄ່າທຳນຽມ (ມອບງົບປະມານລັດ)
+  serviceAmount Float    @default(0) // ຍອດຄ່າບໍລິການ (ວິຊາການ/ຂຶ້ນແຜນ)
+  remark        String?  // ໝາຍເຫດ
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
 // 💸 ຕາຕະລາງລາຍຈ່າຍ (Expense)
@@ -93,4 +97,19 @@ model Category {
   children  Category[] @relation("CategoryToSub")
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
+}
+
+// 📅 ຕາຕະລາງປະຫວັດການປິດບັນຊີປະຈຳປີ
+model YearlyClose {
+  id             Int      @id @default(autoincrement())
+  year           Int      @unique // ປີງົບປະມານ ເຊັ່ນ 2024
+  broughtForward Float    @default(0) // ເງິນຍົກຍອດມາຈາກປີກ່ອນ
+  regularIncome  Float    @default(0) // ລາຍຮັບບໍລິຫານ/ວິຊາການປີນີ້
+  totalExpense   Float    @default(0) // ລາຍຈ່າຍລວມປີນີ້
+  endingBalance  Float    @default(0) // ເງິນເຫຼືອສຸດທິຍົກໄປປີຖັດໄປ
+  isClosed       Boolean  @default(false) // ສະຖານະປິດບັນຊີ
+  closedAt       DateTime?
+  closedBy       String?  // ຜູ້ກົດປິດບັນຊີ
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }

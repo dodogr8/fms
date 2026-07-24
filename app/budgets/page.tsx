@@ -3,16 +3,14 @@
 import { useState, useEffect, useMemo } from "react";
 import Sidebar from "@/components/Sidebar";
 import Navbar from "@/components/Navbar";
+import { showSuccess, showError, showConfirm } from "@/lib/swal";
 import { 
   Plus, 
   Search, 
   PieChart, 
   Trash2, 
   Edit, 
-  X,
-  ChevronLeft,
-  ChevronRight,
-  Filter
+  X
 } from "lucide-react";
 import { formatNumberInput, parseFormattedNumber } from "@/lib/formatters";
 
@@ -21,7 +19,9 @@ interface BudgetItem {
   projectName: string;
   categoryName: string;
   totalAmount: number;
-  adminFee: number;
+  deductType: string;
+  deductValue: number;
+  deductAmount: number; // 💡 ໃຊ້ deductAmount ແທນ adminFee ເພື່ອແກ້ NaN
   netAmount: number;
   usedAmount: number;
   startDate: string;
@@ -86,7 +86,7 @@ export default function BudgetsPage() {
         setBudgets(data);
       }
     } catch (err) {
-      console.error("Fetch Budgets Error:", err);
+      showError("Fetch Budgets Error: " + (err instanceof Error ? err.message : String(err)));
     }
   };
 
@@ -138,8 +138,6 @@ export default function BudgetsPage() {
 
   const handleOpenAdd = () => {
     setEditingId(null);
-    
-    // Auto Select ໝວດໝູ່ທຳອິດຖ້າມີ
     let defaultCategory = "ງົບປະມານໂຄງການ";
     if (categories.length > 0) {
       defaultCategory = categories[0].name;
@@ -160,12 +158,15 @@ export default function BudgetsPage() {
 
   const handleOpenEdit = (item: BudgetItem) => {
     setEditingId(item.id);
+    const itemDeductType = (item.deductType as "percent" | "amount") || "percent";
+    const itemDeductValue = item.deductValue ? item.deductValue.toString() : "0";
+
     setFormData({
       projectName: item.projectName || "",
       categoryName: item.categoryName || "ງົບປະມານໂຄງການ",
       totalAmount: formatNumberInput(item.totalAmount ? item.totalAmount.toString() : "0"),
-      deductType: "percent",
-      deductValue: "0",
+      deductType: itemDeductType,
+      deductValue: itemDeductType === "amount" ? formatNumberInput(itemDeductValue) : itemDeductValue,
       startDate: item.startDate || new Date().toISOString().split("T")[0],
       endDate: item.endDate || "",
       detail: item.detail || "",
@@ -209,14 +210,11 @@ export default function BudgetsPage() {
         setShowModal(false);
         alert(isEdit ? "ແກ້ໄຂຂໍ້ມູນສຳເລັດ!" : "ບັນທຶກຂໍ້ມູນສຳເລັດ!");
       } else {
-        // 💡 ດັກຈັບ Error ຈາກ Server ແບບປອດໄພ
         let errorMsg = "ບໍ່ສາມາດບັນທຶກໄດ້";
         try {
           const errorData = await res.json();
           if (errorData.message) errorMsg = errorData.message;
-        } catch (parseErr) {
-          errorMsg = `Server Error (Code: ${res.status})`;
-        }
+        } catch (p) {}
         alert(`ເກີດຂໍ້ຜິດພາດ: ${errorMsg}`);
       }
     } catch (err: any) {
@@ -262,7 +260,7 @@ export default function BudgetsPage() {
     }
   };
 
-  const totalBudget = budgets.reduce((sum, item) => sum + Number(item.totalAmount), 0);
+  const totalBudget = budgets.reduce((sum, item) => sum + Number(item.totalAmount || 0), 0);
 
   return (
     <div className="flex w-full min-h-screen bg-slate-50 overflow-x-hidden">
@@ -373,7 +371,12 @@ export default function BudgetsPage() {
                 <tbody className="divide-y divide-slate-100 font-medium">
                   {paginatedBudgets.length > 0 ? (
                     paginatedBudgets.map((item, index) => {
-                      const remain = Number(item.netAmount) - Number(item.usedAmount);
+                      const total = Number(item.totalAmount || 0);
+                      const deduct = Number(item.deductAmount || 0); // 💡 ແກ້ໄຂບ່ອນນີ້ຈາກ adminFee ເປັນ deductAmount
+                      const net = Number(item.netAmount || 0);
+                      const used = Number(item.usedAmount || 0);
+                      const remain = net - used;
+
                       return (
                         <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
                           {userRole !== "DIRECTOR" && (
@@ -391,10 +394,10 @@ export default function BudgetsPage() {
                           </td>
                           <td className="py-3.5 px-4 font-bold text-slate-900">{item.projectName}</td>
                           <td className="py-3.5 px-4 whitespace-nowrap">{item.categoryName || "-"}</td>
-                          <td className="py-3.5 px-4 font-bold text-slate-800 whitespace-nowrap">{Number(item.totalAmount).toLocaleString()}</td>
-                          <td className="py-3.5 px-4 font-semibold text-green-700 whitespace-nowrap">{Number(item.adminFee).toLocaleString()}</td>
-                          <td className="py-3.5 px-4 font-bold text-blue-700 whitespace-nowrap">{Number(item.netAmount).toLocaleString()}</td>
-                          <td className="py-3.5 px-4 font-semibold text-red-600 whitespace-nowrap">{Number(item.usedAmount).toLocaleString()}</td>
+                          <td className="py-3.5 px-4 font-bold text-slate-800 whitespace-nowrap">{total.toLocaleString()}</td>
+                          <td className="py-3.5 px-4 font-semibold text-green-700 whitespace-nowrap">{deduct.toLocaleString()}</td>
+                          <td className="py-3.5 px-4 font-bold text-blue-700 whitespace-nowrap">{net.toLocaleString()}</td>
+                          <td className="py-3.5 px-4 font-semibold text-red-600 whitespace-nowrap">{used.toLocaleString()}</td>
                           <td className="py-3.5 px-4 font-black text-emerald-700 whitespace-nowrap">{remain.toLocaleString()}</td>
                           
                           {userRole !== "DIRECTOR" && (
@@ -434,7 +437,7 @@ export default function BudgetsPage() {
         </main>
       </div>
 
-      {/* Modal */}
+      {/* Modal ເພີ່ມ/ແກ້ໄຂ ງົບປະມານ */}
       {showModal && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto">
@@ -501,43 +504,42 @@ export default function BudgetsPage() {
                 </div>
               </div>
 
-              {!editingId && (
-                <div className="p-4 bg-green-50 border border-green-200 rounded-2xl space-y-3">
-                  <label className="font-bold text-green-900 text-xs block">
-                    💡 ຫັກເງິນບໍລິຫານ (%) ເຂົ້າຄັງເງິນລາຍຮັບອັດຕະໂນມັດ:
-                  </label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <select
-                      value={formData.deductType}
-                      onChange={(e) => {
-                        const newType = e.target.value as "percent" | "amount";
-                        setFormData({ 
-                          ...formData, 
-                          deductType: newType,
-                          deductValue: "0" 
-                        });
-                      }}
-                      className="p-2.5 bg-white border border-green-300 rounded-xl text-xs font-semibold"
-                    >
-                      <option value="percent">ຫັກເປັນ ເປີເຊັນ (%)</option>
-                      <option value="amount">ຫັກເປັນ ຈຳນວນເງິນ (ກີບ)</option>
-                    </select>
+              {/* 💡 ປັບໃຫ້ສະແດງຊ່ອງຫັກເງິນບໍລິຫານທັງຕອນສ້າງໃໝ່ ແລະ ຕອນແກ້ໄຂ */}
+              <div className="p-4 bg-green-50 border border-green-200 rounded-2xl space-y-3">
+                <label className="font-bold text-green-900 text-xs block">
+                  💡 ຫັກເງິນບໍລິຫານ (%) ເຂົ້າຄັງເງິນລາຍຮັບອັດຕະໂນມັດ:
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <select
+                    value={formData.deductType}
+                    onChange={(e) => {
+                      const newType = e.target.value as "percent" | "amount";
+                      setFormData({ 
+                        ...formData, 
+                        deductType: newType,
+                        deductValue: "0" 
+                      });
+                    }}
+                    className="p-2.5 bg-white border border-green-300 rounded-xl text-xs font-semibold"
+                  >
+                    <option value="percent">ຫັກເປັນ ເປີເຊັນ (%)</option>
+                    <option value="amount">ຫັກເປັນ ຈຳນວນເງິນ (ກີບ)</option>
+                  </select>
 
-                    <input
-                      type="text"
-                      placeholder="0"
-                      value={formData.deductValue}
-                      onChange={(e) => {
-                        const val = formData.deductType === "amount" 
-                          ? formatNumberInput(e.target.value) 
-                          : e.target.value;
-                        setFormData({ ...formData, deductValue: val });
-                      }}
-                      className="p-2.5 bg-white border border-green-300 rounded-xl text-xs font-bold text-green-700"
-                    />
-                  </div>
+                  <input
+                    type="text"
+                    placeholder="0"
+                    value={formData.deductValue}
+                    onChange={(e) => {
+                      const val = formData.deductType === "amount" 
+                        ? formatNumberInput(e.target.value) 
+                        : e.target.value;
+                      setFormData({ ...formData, deductValue: val });
+                    }}
+                    className="p-2.5 bg-white border border-green-300 rounded-xl text-xs font-bold text-green-700"
+                  />
                 </div>
-              )}
+              </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
 import Navbar from "@/components/Navbar";
+import { showSuccess, showError, showConfirm } from "@/lib/swal";
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -57,7 +58,7 @@ export default function DashboardPage() {
         setData(result);
       }
     } catch (err) {
-      console.error("Fetch Dashboard Error:", err);
+      showError("Fetch Dashboard Error: " + (err instanceof Error ? err.message : String(err)));
     } finally {
       setLoading(false);
     }
