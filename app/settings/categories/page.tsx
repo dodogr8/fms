@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
 import Navbar from "@/components/Navbar";
+import { showSuccess, showError, showConfirm } from "@/lib/swal";
 import { 
   Plus, 
   FolderTree, 
@@ -91,7 +92,7 @@ export default function CategoriesSettingsPage() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!categoryName.trim()) {
-      alert("ກະລຸນາປ້ອນຊື່ໝວດໝູ່!");
+      showError("ກະລຸນາປ້ອນຊື່ໝວດໝູ່!");
       return;
     }
 
@@ -102,7 +103,7 @@ export default function CategoriesSettingsPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ name: categoryName }),
         });
-        if (res.ok) alert("ອັບເດດໝວດໝູ່ສຳເລັດ!");
+        if (res.ok) showSuccess("ອັບເດດໝວດໝູ່ສຳເລັດ!");
       } else {
         const res = await fetch("/api/categories", {
           method: "POST",
@@ -113,13 +114,13 @@ export default function CategoriesSettingsPage() {
             parentId: modalParentId,
           }),
         });
-        if (res.ok) alert("ເພີ່ມໝວດໝູ່ສຳເລັດ!");
+        if (res.ok) showSuccess("ເພີ່ມໝວດໝູ່ສຳເລັດ!");
       }
 
       fetchCategories();
       setShowModal(false);
     } catch (err) {
-      alert("ເກີດຂໍ້ຜິດພາດ!");
+      showError("ເກີດຂໍ້ຜິດພາດ!");
     }
   };
 
@@ -130,12 +131,12 @@ export default function CategoriesSettingsPage() {
       const res = await fetch(`/api/categories/${id}`, { method: "DELETE" });
       if (res.ok) {
         fetchCategories();
-        alert("ລົບໝວດໝູ່ສຳເລັດ!");
+        showSuccess("ລົບໝວດໝູ່ສຳເລັດ!");
       } else {
-        alert("ບໍ່ສາມາດລົບໄດ້!");
+        showError("ບໍ່ສາມາດລົບໄດ້!");
       }
     } catch (err) {
-      alert("ເກີດຂໍ້ຜິດພາດ!");
+      showError("ເກີດຂໍ້ຜິດພາດ!");
     }
   };
 

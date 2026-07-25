@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
 import Navbar from "@/components/Navbar";
+import { showSuccess, showError, showConfirm } from "@/lib/swal";
 import { 
   Users, 
   UserPlus, 
@@ -77,12 +78,12 @@ export default function SettingsPage() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.username || !formData.fullName) {
-      alert("ກະລຸນາປ້ອນຂໍ້ມູນໃຫ້ຄົບຖ້ວນ!");
+      showError("ກະລຸນາປ້ອນຂໍ້ມູນໃຫ້ຄົບຖ້ວນ!");
       return;
     }
 
     if (!editingUserId && !formData.password) {
-      alert("ກະລຸນາປ້ອນລະຫັດຜ່ານສຳລັບຜູ້ໃຊ້ໃໝ່!");
+      showError("ກະລຸນາປ້ອນລະຫັດຜ່ານສຳລັບຜູ້ໃຊ້ໃໝ່!");
       return;
     }
 
@@ -102,18 +103,18 @@ export default function SettingsPage() {
       if (res.ok) {
         fetchUsers();
         setShowModal(false);
-        alert(isEdit ? "ແກ້ໄຂຂໍ້ມູນຜູ້ໃຊ້ງານສຳເລັດ!" : "ເພີ່ມຜູ້ໃຊ້ງານໃໝ່ສຳເລັດ!");
+        showSuccess(isEdit ? "ແກ້ໄຂຂໍ້ມູນຜູ້ໃຊ້ງານສຳເລັດ!" : "ເພີ່ມຜູ້ໃຊ້ງານໃໝ່ສຳເລັດ!");
       } else {
-        alert(data.message || "ເກີດຂໍ້ຜິດພາດ!");
+        showError(data.message || "ເກີດຂໍ້ຜິດພາດ!");
       }
     } catch (err) {
-      alert("ບໍ່ສາມາດເຊື່ອມຕໍ່ Server ໄດ້!");
+      showError("ບໍ່ສາມາດເຊື່ອມຕໍ່ Server ໄດ້!");
     }
   };
 
   const handleDelete = async (id: number, username: string) => {
     if (username === "admin") {
-      alert("ບໍ່ສາມາດລົບ ບັນຊີ Admin ຫຼັກໄດ້!");
+      showError("ບໍ່ສາມາດລົບ ບັນຊີ Admin ຫຼັກໄດ້!");
       return;
     }
 
@@ -125,10 +126,10 @@ export default function SettingsPage() {
         fetchUsers();
       } else {
         const data = await res.json();
-        alert(data.message || "ລົບບໍ່ສຳເລັດ!");
+        showError(data.message || "ລົບບໍ່ສຳເລັດ!");
       }
     } catch (err) {
-      alert("ເກີດຂໍ້ຜິດພາດ!");
+      showError("ເກີດຂໍ້ຜິດພາດ!");
     }
   };
 
