@@ -1,11 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: "standalone", // 💡 ຫຼຸດ Thread/Process ໃຫ້ເບົາບາງທີ່ສຸດ
   typescript: {
-    // 💡 ຂ້າມ Type Check ຕອນ Build ຢູ່ Hostinger
     ignoreBuildErrors: true,
   },
   eslint: {
-    // 💡 ຂ້າມ ESLint Warnings ຕອນ Build
     ignoreDuringBuilds: true,
   },
 };
