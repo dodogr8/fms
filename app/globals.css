@@ -1,3 +1,5 @@
+/* 💡 1. ນຳເຂົ້າ Font Phetsarath OT ຈາກ Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Phetsarath:wght@400;700&display=swap');
 @import "tailwindcss";
 
 :root {
@@ -38,4 +40,36 @@ input::placeholder,
 textarea::placeholder {
   color: #94a3b8 !important; /* Slate-400 */
   font-weight: 400 !important;
+}
+
+/* 💡 2. ກຳນົດ CSS ໃຫ້ສະແດງ Font Phetsarath OT ຕອນສັ່ງພິມ ຫຼື ບັນທຶກ PDF */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+
+  body, 
+  div, 
+  table, 
+  th, 
+  td, 
+  p, 
+  span, 
+  h1, 
+  h2, 
+  h3, 
+  h4 {
+    font-family: 'Phetsarath', 'Phetsarath OT', 'Noto Sans Lao', sans-serif !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* ເຊື່ອງອຸປະກອນທີ່ບໍ່ຕ້ອງການໃຫ້ອອກໃນ PDF */
+  button, 
+  aside, 
+  header, 
+  .no-print {
+    display: none !important;
+  }
 }

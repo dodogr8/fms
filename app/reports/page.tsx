@@ -401,7 +401,7 @@ export default function ReportsPage() {
 
           {/* 💡 ພື້ນທີ່ສະແດງເອກະສານ ສຳລັບພິມ (Print / PDF Document Sheet) */}
           <div className="bg-white p-8 rounded-2xl border border-slate-200/80 shadow-sm overflow-x-auto">
-            <div ref={componentRef} className="p-8 bg-white min-w-[750px] space-y-6 text-slate-800 font-sans">
+            <div ref={componentRef} className="p-8 bg-white min-w-[750px] space-y-6 text-slate-800" style={{ fontFamily: "'Phetsarath', 'Phetsarath OT', sans-serif" }}>
               
               {/* Header ເອກະສານທາງການ */}
               <div className="text-center space-y-1">
