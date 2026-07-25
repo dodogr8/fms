@@ -5,7 +5,7 @@ import bcrypt from "bcryptjs";
 // PUT: ແກ້ໄຂຂໍ້ມູນຜູ້ໃຊ້
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // ດຶງ ID ຈາກ params
@@ -68,7 +68,7 @@ export async function PUT(
 // DELETE: ລົບຜູ້ໃຊ້
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const resolvedParams = await params;

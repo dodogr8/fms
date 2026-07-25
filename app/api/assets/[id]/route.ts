@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 // PUT: ແກ້ໄຂຊັບສິນ
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const resolvedParams = await params;
@@ -34,7 +34,7 @@ export async function PUT(
 // DELETE: ລົບຊັບສິນ 1 ລາຍການ
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const resolvedParams = await params;
