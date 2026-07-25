@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import Sidebar from "@/components/Sidebar";
-import Navbar from "@/components/Navbar";
+import Sidebar from "../../components/Sidebar";
+import Navbar from "../../components/Navbar";
 import { formatNumberInput, parseFormattedNumber } from "@/lib/formatters";
-import { showSuccess, showError, showConfirm } from "@/lib/swal";
+import { showSuccess, showError, showConfirm } from "../../lib/swal";
 import { 
   Plus, 
   Search, 
@@ -23,7 +23,7 @@ import {
   ChevronRight,
   Filter
 } from "lucide-react";
-import { QRCodeSVG } from "qrcode.react";
+
 
 interface AssetItem {
   id: number;
@@ -704,7 +704,7 @@ export default function AssetsPage() {
             </div>
 
             <div className="p-4 bg-slate-50 rounded-2xl flex justify-center border border-slate-100">
-              <QRCodeSVG value={`https://gfms.gov.la/view_asset?code=${selectedQR.assetCode}`} size={160} />
+              <QrCode values={`https://gfms.gov.la/view_asset?code=${selectedQR.assetCode}`} size={160} />
             </div>
 
             <div>
