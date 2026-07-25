@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import Swal from "sweetalert2";
 import { Lock, User, Building2, ArrowRight, ShieldCheck } from "lucide-react";
 
 export default function LoginPage() {
@@ -8,6 +9,22 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    // 💡 ກວດສອບ Session ໝົດອາຍຸ ຈາກ URL Search Query (?expired=true)
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("expired") === "true") {
+        localStorage.removeItem("user"); // ລ້າງ LocalStorage
+        Swal.fire({
+          icon: "warning",
+          title: "Session ໝົດອາຍຸ",
+          text: "ກະລຸນາເຂົ້າສູ່ລະບົບໃໝ່ອີກຄັ້ງ ເພື່ອຄວາມປອດໄພ",
+          confirmButtonColor: "#16a34a",
+        });
+      }
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,7 +36,7 @@ export default function LoginPage() {
       setLoading(false);
       return;
     }
-
+    
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",

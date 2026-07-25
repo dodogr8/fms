@@ -13,7 +13,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // ຄົ້ນຫາຜູ້ໃຊ້ໃນ Database
+    // 1️⃣ ຄົ້ນຫາຜູ້ໃຊ້ໃນ Database
     const user = await prisma.user.findUnique({
       where: { username },
     });
@@ -25,11 +25,9 @@ export async function POST(request: Request) {
       );
     }
 
-    // ກວດສອບລະຫັດຜ່ານ ( Compare Hash Password )
+    // 2️⃣ ກວດສອບລະຫັດຜ່ານ
     const isPasswordValid = await bcrypt.compare(password, user.password);
-
-    // ສຳລັບການທົດສອບ (ຖ້າລະຫັດໃນ DB ຍັງບໍ່ໄດ້ Hash ໃຫ້ເຊັກແບບ plain text ນຳ)
-    const isPlainTextValid = password === user.password;
+    const isPlainTextValid = password === user.password; // ສຳລັບ plain text password ຕອນ test
 
     if (!isPasswordValid && !isPlainTextValid) {
       return NextResponse.json(
@@ -38,20 +36,38 @@ export async function POST(request: Request) {
       );
     }
 
-    // ສົ່ງຂໍ້ມູນຜູ້ໃຊ້າກັບໄປ (ໂດຍບໍ່ສົ່ງ password)
-    return NextResponse.json({
-      message: "ເຂົ້າສູ່ລະບົບສຳເລັດ!",
-      user: {
-        id: user.id,
-        username: user.username,
-        fullName: user.fullName,
-        role: user.role,
-      },
+    // 3️⃣ ປະກາດ Token (ປະກາດຕົວປ່ຽນ userToken ໃຫ້ຈະແຈ້ງ)
+    const userToken = String(user.id || user.username);
+
+    // 4️⃣ ສ້າງ Response ພ້ອມຂໍ້ມູນຜູ້ໃຊ້
+    const userData = {
+      id: user.id,
+      username: user.username,
+      fullName: user.fullName || user.username,
+      role: user.role || "FINANCE_STAFF",
+    };
+
+    const response = NextResponse.json({
+      message: "ເຂົ້າສູ່ລະບົບສຳເລັດ",
+      user: userData,
+      token: userToken,
     });
-  } catch (error) {
-    console.error("Login Error:", error);
+
+    // 5️⃣ Set Cookie (ກຳນົດອາຍຸ 7 ວັນ)
+    response.cookies.set("token", userToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7, // 7 ວັນ
+    });
+
+    return response;
+
+  } catch (error: any) {
+    console.error("Login API Error:", error);
     return NextResponse.json(
-      { message: "ເກີດຂໍ້ຜິດພາດໃນລະບົບ ບໍ່ສາມາດເຂົ້າສູ່ລະບົບໄດ້!" },
+      { message: "ເກີດຂໍ້ຜິດພາດໃນລະບົບ!" },
       { status: 500 }
     );
   }
