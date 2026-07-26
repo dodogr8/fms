@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import Sidebar from "../../components/Sidebar";
 import Navbar from "../../components/Navbar";
-import { formatNumberInput, parseFormattedNumber } from "@/lib/formatters";
+import { formatNumberInput, parseFormattedNumber } from "../../lib/formatters";
 import { showSuccess, showError, showConfirm } from "../../lib/swal";
 import { 
   Plus, 

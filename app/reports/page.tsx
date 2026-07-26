@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect, useMemo } from "react";
-import Sidebar from "@/components/Sidebar";
-import Navbar from "@/components/Navbar";
-import { showSuccess, showError } from "@/lib/swal";
+import Sidebar from "../../components/Sidebar";
+import Navbar from "../../components/Navbar";
+import { showSuccess, showError } from "../../lib/swal";
 import { 
   FileText, 
   Printer, 

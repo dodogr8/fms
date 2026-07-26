@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Sidebar from "@/components/Sidebar";
-import Navbar from "@/components/Navbar";
+import Sidebar from "../../components/Sidebar";
+import Navbar from "../../components/Navbar";
 import Link from "next/link";
 import { 
   TrendingUp, 
