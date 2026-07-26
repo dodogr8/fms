@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Sidebar from "@/components/Sidebar";
-import Navbar from "@/components/Navbar";
-import { showSuccess, showError, showConfirm } from "@/lib/swal";
+import Sidebar from "../../../components/Sidebar";
+import Navbar from "../../../components/Navbar";
+import { showSuccess, showError, showConfirm } from "../../../lib/swal";
 import { 
   Users, 
   UserPlus, 

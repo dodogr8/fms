@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "../../../lib/prisma";
 
 // GET: ດຶງຂໍ້ມູນລາຍຈ່າຍທັງໝົດ (ລຽງຕາມວັນທີ ແລະ createdAt ລ່າສຸດ)
 export async function GET() {

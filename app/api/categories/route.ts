@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "../../../lib/prisma";
 
 // GET: ດຶງຂໍ້ມູນໝວດໝູ່ທັງໝົດ ພ້ອມ Sub-categories
 export async function GET(request: Request) {
