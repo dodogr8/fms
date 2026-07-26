@@ -2,8 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
-/* 💡 1. ນຳເຂົ້າ Font Phetsarath OT ຈາກ Google Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Phetsarath:wght@400;700&display=swap');
+/* 💡 1. ນຳເຂົ້າ Font Noto Sans Lao ແລະ Phetsarath ຈາກ Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Lao:wght@300;400;500;600;700&family=Phetsarath:wght@400;700&display=swap');
 
 :root {
   --background: #ffffff;
@@ -17,55 +17,36 @@
   }
 }
 
+/* 💡 2. ຕັ້ງ Font ຂອງໜ້າເວັບໄຊທັງໝົດເປັນ Noto Sans Lao (ເປັນຄ່າເລີ່ມຕົ້ນ) */
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: 'Phetsarath', 'Phetsarath OT', 'Noto Sans Lao', sans-serif !important;
+  font-family: 'Noto Sans Lao', sans-serif !important;
 }
 
-/* 💡 ປັບສີຕົວໜັງສືຕອນພິມໃນ Input, Select, Textarea ໃຫ້ເປັນສີດຳເຂັ້ມ ແລະ ອ່ານງ່າຍ */
+/* ປັບສີຕົວໜັງສື ແລະ Font ໃນ Input, Select, Textarea */
 input, 
 select, 
 textarea {
-  color: #0f172a !important; /* ສີດຳເຂັ້ມ Slate-900 */
-  font-weight: 600 !important; /* ເພີ່ມຄວາມ ໜາ-ແຈ້ງ ຂອງໂຕໜັງສື */
+  color: #0f172a !important;
+  font-weight: 600 !important;
+  font-family: 'Noto Sans Lao', sans-serif !important;
 }
 
-/* ປັບສີ Placeholder (ຂໍ້ຄວາມແນະນຳຈ່າງໆ) ໃຫ້ເປັນສີເທົາພໍດີ ເພື່ອບໍ່ໃຫ້ສັບສົນກັບໂຕພິມແທ້ */
 input::placeholder,
 textarea::placeholder {
-  color: #94a3b8 !important; /* Slate-400 */
+  color: #94a3b8 !important;
   font-weight: 400 !important;
 }
 
-/* 💡 2. ກຳນົດ CSS ໃຫ້ສະແດງ Font Phetsarath OT ຕອນສັ່ງພິມ ຫຼື ບັນທຶກ PDF */
+/* 💡 3. ຕັ້ງ Font ໃຫ້ເປັນ Phetsarath ສະເພາະຕອນສັ່ງພິມ (Print / Save PDF) */
 @media print {
-  @page {
-    size: A4 portrait;
-    margin: 12mm;
+  body, *, .print-area {
+    font-family: 'Phetsarath', 'Phetsarath OT', serif !important;
   }
+}
 
-  body, 
-  div, 
-  table, 
-  th, 
-  td, 
-  p, 
-  span, 
-  h1, 
-  h2, 
-  h3, 
-  h4 {
-    font-family: 'Phetsarath', 'Phetsarath OT', 'Noto Sans Lao', sans-serif !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-
-  /* ເຊື່ອງອຸປະກອນທີ່ບໍ່ຕ້ອງການໃຫ້ອອກໃນ PDF */
-  button, 
-  aside, 
-  header, 
-  .no-print {
-    display: none !important;
-  }
+/* Custom Class ສຳລັບໃຊ້ກຳນົດ Phetsarath ໃສ່ Element Specific ຕອນ Export PDF */
+.font-phetsarath {
+  font-family: 'Phetsarath', 'Phetsarath OT', serif !important;
 }
