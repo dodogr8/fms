@@ -12,7 +12,7 @@ import {
   Edit, 
   X
 } from "lucide-react";
-import { formatNumberInput, parseFormattedNumber } from "@/lib/formatters";
+import { formatNumberInput, parseFormattedNumber } from "../../lib/formatters";
 
 interface BudgetItem {
   id: number;

@@ -19,7 +19,7 @@ import {
   Filter
 } from "lucide-react";
 import * as XLSX from "xlsx";
-import { formatNumberInput, parseFormattedNumber } from "@/lib/formatters";
+import { formatNumberInput, parseFormattedNumber } from "../../lib/formatters";
 
 interface ExpenseTransaction {
   id: number;
