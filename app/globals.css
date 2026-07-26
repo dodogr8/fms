@@ -10,17 +10,8 @@
   --foreground: #171717;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-/* 💡 2. ຕັ້ງ Font ຂອງໜ້າເວັບໄຊທັງໝົດເປັນ Noto Sans Lao (ເປັນຄ່າເລີ່ມຕົ້ນ) */
-body {
-  background: var(--background);
-  color: var(--foreground);
+/* 💡 2. ບັງຄັບໃຫ້ Font Sans ຂອງ Tailwind ແລະ Element ທຸກໂຕໃຊ້ Noto Sans Lao */
+html, body, *, .font-sans {
   font-family: 'Noto Sans Lao', sans-serif !important;
 }
 
@@ -39,14 +30,13 @@ textarea::placeholder {
   font-weight: 400 !important;
 }
 
-/* 💡 3. ຕັ້ງ Font ໃຫ້ເປັນ Phetsarath ສະເພາະຕອນສັ່ງພິມ (Print / Save PDF) */
+/* 💡 3. ຕັ້ງ Font ໃຫ້ເປັນ Phetsarath ສະເພາະຕອນສັ່ງພິມ / ບັນທຶກ PDF */
 @media print {
   body, *, .print-area {
     font-family: 'Phetsarath', 'Phetsarath OT', serif !important;
   }
 }
 
-/* Custom Class ສຳລັບໃຊ້ກຳນົດ Phetsarath ໃສ່ Element Specific ຕອນ Export PDF */
 .font-phetsarath {
   font-family: 'Phetsarath', 'Phetsarath OT', serif !important;
 }
