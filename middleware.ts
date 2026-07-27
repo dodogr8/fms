@@ -31,5 +31,7 @@ export const config = {
     "/budgets/:path*",
     "/assets/:path*",
     "/reports/:path*",
+    "/settings/:path*",       // ✅ Bug #5 Fix: ເພີ່ມ route ທີ່ຂາດ
+    "/annual-summary/:path*", // ✅ Bug #5 Fix: ເພີ່ມ route ທີ່ຂາດ
   ],
 };

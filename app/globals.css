@@ -1,9 +1,9 @@
+/* ✅ Bug #6 Fix: @import ຕ້ອງຢູ່ກ່ອນ @tailwind directives ທຸກຢ່າງ */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Lao:wght@300;400;500;600;700&family=Phetsarath:wght@400;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* 💡 1. ນຳເຂົ້າ Font Noto Sans Lao ແລະ Phetsarath ຈາກ Google Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Lao:wght@300;400;500;600;700&family=Phetsarath:wght@400;700&display=swap');
 
 :root {
   --background: #ffffff;

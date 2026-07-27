@@ -39,15 +39,16 @@ export async function GET(request: Request) {
     let isClosed = false;
     
     try {
-      const annualClosing = await (prisma as any).annualClosing.findFirst({
-        where: { year: selectedYear - 1 }
+      // ✅ Bug #2 Fix: ໃຊ້ model ຊື່ yearlyClose ທີ່ຖືກຕ້ອງ (ບໍ່ແມ່ນ annualClosing)
+      const prevYearClose = await (prisma as any).yearlyClose.findFirst({
+        where: { year: selectedYear - 1, isClosed: true }
       });
-      if (annualClosing) {
-        carryOverBalance = Number(annualClosing.netBalance || annualClosing.balance || annualClosing.amount || 0);
+      if (prevYearClose) {
+        carryOverBalance = Number(prevYearClose.endingBalance || 0);
       }
 
-      const currentYearClosing = await (prisma as any).annualClosing.findFirst({
-        where: { year: selectedYear }
+      const currentYearClosing = await (prisma as any).yearlyClose.findFirst({
+        where: { year: selectedYear, isClosed: true }
       });
       isClosed = !!currentYearClosing;
     } catch (e) {}
@@ -168,12 +169,14 @@ export async function GET(request: Request) {
     } catch (e) {}
 
     // 9️⃣ ດຶງຂໍ້ມູນການເຄື່ອນໄຫວລ້າສຸດ
+    // ✅ Bug #8 Fix: ເກັບ rawDate (ISO string) ໄວ້ sort, ສ່ວນ date ໃຊ້ສຳລັບ display ເທົ່ານັ້ນ
     const recentIncomes = incomes.slice(0, 5).map((i: any) => ({
       id: `inc-${i.id}`,
       type: "income",
       title: i.description || i.title || "ບັນທຶກລາຍຮັບ",
       date: new Date(i.date).toLocaleDateString("la-LA"),
-      refNo: i.refNo || i.code || i.billNo || "INC-REF",
+      rawDate: i.date, // ໃຊ້ສຳລັບ sort
+      refNo: i.referenceNo || i.refNo || i.code || "INC-REF",
       amount: Number(i.amount || 0)
     }));
 
@@ -182,12 +185,13 @@ export async function GET(request: Request) {
       type: "expense",
       title: e.description || e.title || "ບັນທຶກລາຍຈ່າຍ",
       date: new Date(e.date).toLocaleDateString("la-LA"),
-      refNo: e.refNo || e.code || e.billNo || "EXP-REF",
+      rawDate: e.date, // ໃຊ້ສຳລັບ sort
+      refNo: e.referenceNo || e.refNo || e.code || "EXP-REF",
       amount: Number(e.amount || 0)
     }));
 
     const recentTransactions = [...recentIncomes, ...recentExpenses]
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .sort((a, b) => new Date(b.rawDate).getTime() - new Date(a.rawDate).getTime()) // ✅ sort ໂດຍ ISO date
       .slice(0, 6);
 
     return NextResponse.json({

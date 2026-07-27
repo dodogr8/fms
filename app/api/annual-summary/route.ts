@@ -40,7 +40,12 @@ export async function GET(request: Request) {
     });
 
     const totalExpense = yearExpenses.reduce((sum: number, item: any) => sum + Number(item.amount || 0), 0);
-    const netBalance = regularIncomeTotal - totalExpense;
+
+    // ✅ Bug #3 Fix: ລວມ broughtForward (ເງິນຍຶກຍອດຈາກປີກ່ອນ) ໃນ netBalance
+    // NOTE: feeTotal ກັບ serviceTotal ບໍ່ລວມ = ຖືກຕ້ອງ (ຄ່າທົຳນຽມ/ບອລິການ → ສົ່ງລັດ, ບໍ່ນັບເຂົ້າຄັງ)
+    const prevYearClose = closingHistory.find((h: any) => h.year === selectedYear - 1 && h.isClosed);
+    const broughtForward = Number(prevYearClose?.endingBalance || 0);
+    const netBalance = broughtForward + regularIncomeTotal - totalExpense;
 
     const currentYearStatus = closingHistory.find((item: any) => item.year === selectedYear);
 
@@ -50,6 +55,7 @@ export async function GET(request: Request) {
       feeTotal,
       serviceTotal,
       totalExpense,
+      broughtForward,    // ✅ Bug #3 Fix: ສ່ງ broughtForward ໤ປສະແດງຜ໋ດ້ວຍ
       netBalance,
       isClosed: currentYearStatus?.isClosed || false,
       closingHistory,
@@ -106,7 +112,14 @@ export async function POST(request: Request) {
     });
 
     const totalExpense = yearExpenses.reduce((sum: number, item: any) => sum + Number(item.amount || 0), 0);
-    const netBalance = regularIncomeTotal - totalExpense;
+
+    // ✅ Bug #3 Fix: ລວມ broughtForward (ເງິນຍຶກຍອດຈາກປີກ່ອນ) ໃນການປິດບັນຊີ
+    const allClosingHistory: any[] = (prisma as any).yearlyClose
+      ? await (prisma as any).yearlyClose.findMany({ orderBy: { year: "desc" } })
+      : [];
+    const prevYearClose = allClosingHistory.find((h: any) => h.year === targetYear - 1 && h.isClosed);
+    const broughtForward = Number(prevYearClose?.endingBalance || 0);
+    const netBalance = broughtForward + regularIncomeTotal - totalExpense;
 
     let yearlyRecord = null;
     if ((prisma as any).yearlyClose) {

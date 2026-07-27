@@ -29,9 +29,9 @@ model Income {
   description   String   // ເນື້ອໃນລາຍການ
   disburser     String?  // ຜູ້ເບີກ/ຜູ້ມອບ
   receiver      String?  // ຜູ້ຮັບ
-  amount        Float    // ຍອດລວມບິນ
-  feeAmount     Float    @default(0) // ຍອດຄ່າທຳນຽມ (ມອບງົບປະມານລັດ)
-  serviceAmount Float    @default(0) // ຍອດຄ່າບໍລິການ (ວິຊາການ/ຂຶ້ນແຜນ)
+  amount        Decimal  @db.Decimal(15, 2)
+  feeAmount     Decimal  @default(0) @db.Decimal(15, 2)
+  serviceAmount Decimal  @default(0) @db.Decimal(15, 2)
   remark        String?  // ໝາຍເຫດ
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -46,7 +46,7 @@ model Expense {
   description String   // ເນື້ອໃນລາຍການ
   disburser   String?  // ຜູ້ເບີກເງິນ
   receiver    String?  // ຜູ້ຮັບເງິນ
-  amount      Float    // ຈຳນວນເງິນ
+  amount      Decimal  @db.Decimal(15, 2)
   budgetId    Int?     // ID ຂອງໂຄງການ (ຖ້າຕັດຈາກງົບປະມານໂຄງການ)
   budgetName  String?  // ຊື່ໂຄງການ (ສຳລັບສະແດງຜົນ)
   remark      String?  // ໝາຍເຫດ
@@ -59,13 +59,13 @@ model Budget {
   id           Int      @id @default(autoincrement())
   projectName  String   // ຊື່ໂຄງການ/ງົບປະມານ
   categoryName String   // ໝວດໝູ່ / ແຫຼ່ງທຶນ
-  totalAmount  Float    // ງົບປະມານທັງໝົດ
+  totalAmount  Decimal  @db.Decimal(15, 2)
   isDeduct     Boolean  @default(false) // ຫັກເງິນບໍລິຫານຫຼືບໍ່
   deductType   String   @default("percent") // percent ຫຼື amount
-  deductValue  Float    @default(0) // ຄ່າທີ່ປ້ອນ (ເຊັ່ນ 10% ຫຼື 5,000,000)
-  deductAmount Float    @default(0) // ຈຳນວນເງິນທີ່ຖືກຫັກຈິງ
-  netAmount    Float    // ງົບປະມານສຸດທິເຫຼືອໃຊ້ໃນໂຄງການ
-  usedAmount   Float    @default(0) // ຍອດໃຊ້ໄປແລ້ວ
+  deductValue  Decimal  @default(0) @db.Decimal(15, 2)
+  deductAmount Decimal  @default(0) @db.Decimal(15, 2)
+  netAmount    Decimal  @db.Decimal(15, 2)
+  usedAmount   Decimal  @default(0) @db.Decimal(15, 2)
   startDate    String?  // ວັນທີເລີ່ມຕົ້ນ
   endDate      String?  // ວັນທີສິ້ນສຸດ
   detail       String?  // ລາຍລະອຽດ
@@ -80,7 +80,7 @@ model Asset {
   name         String   // ຊື່ຊັບສິນ
   categoryName String   // ໝວດໝູ່ຊັບສິນ
   purchaseDate String   // ວັນທີຈັດຊື້
-  price        Float    // ມູນຄ່າຊື້ (ກີບ)
+  price        Decimal  @db.Decimal(15, 2)
   assignedTo   String   // ຜູ້ຮັບຜິດຊອບ / ບ່ອນຕັ້ງ
   status       String   @default("available") // available, in_use, maintenance, broken
   attachment   String?  // 💡 ເພີ່ມຖັນນີ້ສຳລັບເກັບຊື່ໄຟລ໌ຮູບພາບ/ເອກະສານ
@@ -103,10 +103,10 @@ model Category {
 model YearlyClose {
   id             Int      @id @default(autoincrement())
   year           Int      @unique // ປີງົບປະມານ ເຊັ່ນ 2024
-  broughtForward Float    @default(0) // ເງິນຍົກຍອດມາຈາກປີກ່ອນ
-  regularIncome  Float    @default(0) // ລາຍຮັບບໍລິຫານ/ວິຊາການປີນີ້
-  totalExpense   Float    @default(0) // ລາຍຈ່າຍລວມປີນີ້
-  endingBalance  Float    @default(0) // ເງິນເຫຼືອສຸດທິຍົກໄປປີຖັດໄປ
+  broughtForward Decimal  @default(0) @db.Decimal(15, 2)
+  regularIncome  Decimal  @default(0) @db.Decimal(15, 2)
+  totalExpense   Decimal  @default(0) @db.Decimal(15, 2)
+  endingBalance  Decimal  @default(0) @db.Decimal(15, 2)
   isClosed       Boolean  @default(false) // ສະຖານະປິດບັນຊີ
   closedAt       DateTime?
   closedBy       String?  // ຜູ້ກົດປິດບັນຊີ

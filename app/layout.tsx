@@ -23,7 +23,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="lo">
-      <body className="antialiased bg-gray-50 text-slate-800">
+      {/* ✅ Bug #7 Fix: apply notoSansLao.variable ໃສ່ body ເພື່ອໃຫ້ --font-noto-lao variable ໃຊ້ໄດ້ */}
+      <body className={`${notoSansLao.variable} antialiased bg-gray-50 text-slate-800`}>
         {children}
       </body>
     </html>
